@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MC Assessoria Contábil - Departamento Pessoal & eSocial</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            lime: {
+              400: '#a3e635',
+              500: '#84cc16',
+              600: '#65a30d',
+              700: '#4d7c0f',
+            },
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Monet-Style CSS -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    .drag-active {
+      border-color: #84cc16 !important;
+      background-color: rgba(132, 204, 22, 0.08) !important;
+    }
+  </style>
+</head>
+<body class="bg-[#ECEFF3] text-slate-800 antialiased p-3 sm:p-5 lg:p-6 min-h-screen flex flex-col justify-between">
+
+  <!-- CONTAINER PRINCIPAL ELEVADO (CANVAS MONET) -->
+  <div class="w-full max-w-[1850px] mx-auto canvas-glow rounded-[28px] lg:rounded-[36px] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.06)] p-3 sm:p-5 lg:p-6 xl:p-8 flex flex-col gap-6 relative overflow-hidden">
+
+    <!-- TOP HEADER ELEGANTE MONETRA -->
+    <header class="flex items-center justify-between gap-4 pb-2 border-b border-slate-200/60">
+      
+      <!-- Logo Esquerdo Monetra Style -->
+      <div class="flex items-center gap-3">
+        <a href="/" class="w-10 h-10 rounded-2xl bg-[#84CC16] text-slate-950 flex items-center justify-center font-black shadow-md shadow-lime-500/20 hover:scale-105 transition" title="Voltar ao Hub Principal">
+          <i data-lucide="arrow-left" class="w-5 h-5 text-slate-950"></i>
+        </a>
+        <div class="flex items-center gap-2">
+          <span class="text-xl font-extrabold tracking-tight text-slate-900">MC Contábil</span>
+          <span class="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold uppercase tracking-wider">Departamento Pessoal</span>
+          <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono-code font-bold">Domínio FO (413 Tabelas)</span>
+        </div>
+      </div>
+
+      <!-- Barra de Navegação em Pílulas (Pill Navigation Monetra) -->
+      <nav class="hidden md:flex bg-slate-200/50 p-1 rounded-full items-center gap-1 shadow-inner overflow-x-auto max-w-2xl scrollbar-none">
+        <button class="nav-pill-btn active tab-btn" data-tab="folha">
+          <span>💰 Folha & Rubricas (<span id="countFolha">0</span>)</span>
+        </button>
+        <button class="nav-pill-btn tab-btn" data-tab="admissoes">
+          <span>👥 Admissões (<span id="countAdmissoes">0</span>)</span>
+        </button>
+        <button class="nav-pill-btn tab-btn" data-tab="rescisoes">
+          <span>📋 Rescisões (<span id="countRescisoes">0</span>)</span>
+        </button>
+        <button class="nav-pill-btn tab-btn" data-tab="contabil">
+          <span>📑 Partidas Dobradas (CT)</span>
+        </button>
+        <button class="nav-pill-btn tab-btn" data-tab="auditoria">
+          <span>📁 Pastas DP na Rede</span>
+        </button>
+        <button class="nav-pill-btn tab-btn" data-tab="schema">
+          <span>📚 Dicionário Domínio</span>
+        </button>
+      </nav>
+
+      <!-- Ações Direitas -->
+      <div class="flex items-center gap-2.5">
+        <a href="/notas.html" class="btn-monet-secondary text-xs py-2 px-4 font-bold flex items-center gap-1.5 shadow-sm" title="Abrir Central de Notas Fiscais">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+          <span>Notas (XML)</span>
+        </a>
+        <button id="btnLimpar" class="btn-monet-secondary text-xs py-2 px-3 text-slate-500 hover:text-rose-600 flex items-center gap-1" title="Limpar dados carregados">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+        <button id="btnExportarExcel" class="btn-monet-lime text-xs py-2 px-4 font-bold flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Exportar Relatório</span>
+        </button>
+      </div>
+
+    </header>
+
+    <!-- SAUDAÇÃO & DESCRIÇÃO MONETRA -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          Central de Folha de Pagamento & eSocial
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">
+          Importe arquivos do eSocial (S-1200, S-1210, S-2200, S-2299), confira encargos previdenciários e audite as pastas de DP da rede.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+          <span class="w-2 h-2 mr-2 bg-emerald-500 rounded-full animate-pulse"></span>
+          Conectado: \\192.168.15.2
+        </span>
+      </div>
+    </div>
+
+    <!-- CARDS DE KPIS MONETRA (5 CARDS ELEVADOS) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      
+      <!-- Card 1: Trabalhadores -->
+      <div class="monet-card p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Trabalhadores</span>
+          <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <i data-lucide="users" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div id="kpiTrabalhadores" class="text-2xl font-extrabold text-slate-900">0</div>
+          <div class="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-medium">
+            <span id="kpiAdmissoesCount">0 admissões</span> &bull; <span id="kpiDemissoesCount">0 demissões</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Proventos Bruto -->
+      <div class="monet-card p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Proventos (Bruto)</span>
+          <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <i data-lucide="trending-up" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div id="kpiProventos" class="text-2xl font-extrabold text-emerald-600">R$ 0,00</div>
+          <div class="text-[11px] text-slate-400 mt-1">Salários + Horas Extras</div>
+        </div>
+      </div>
+
+      <!-- Card 3: Descontos -->
+      <div class="monet-card p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Descontos</span>
+          <div class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <i data-lucide="trending-down" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div id="kpiDescontos" class="text-2xl font-extrabold text-rose-600">R$ 0,00</div>
+          <div class="text-[11px] text-slate-400 mt-1">INSS + IRRF + Faltas</div>
+        </div>
+      </div>
+
+      <!-- Card 4: Líquido a Pagar -->
+      <div class="monet-card p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Líquido a Pagar</span>
+          <div class="w-8 h-8 rounded-xl bg-lime-50 text-lime-700 flex items-center justify-center">
+            <i data-lucide="wallet" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div id="kpiLiquido" class="text-2xl font-extrabold text-slate-900">R$ 0,00</div>
+          <div class="text-[11px] text-slate-400 mt-1">Depósitos colaboradores</div>
+        </div>
+      </div>
+
+      <!-- Card 5: Guia DCTFWeb -->
+      <div class="monet-card p-5 flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Guia DCTFWeb / INSS</span>
+          <div class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <i data-lucide="receipt" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div id="kpiDCTFWeb" class="text-2xl font-extrabold text-amber-600">R$ 0,00</div>
+          <div class="text-[11px] text-slate-400 mt-1">Segurados + Patronal + Outros</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DROP ZONE MONETRA (CARD ELEGANTE SUAVE) -->
+    <div id="dropZone" class="monet-card border-2 border-dashed border-slate-300 hover:border-[#84CC16] bg-white/70 p-8 text-center cursor-pointer transition-smooth group">
+      <div class="max-w-md mx-auto">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-lime-100/70 text-lime-700 flex items-center justify-center mb-3 group-hover:scale-110 transition">
+          <i data-lucide="upload-cloud" class="w-7 h-7 text-[#65A30D]"></i>
+        </div>
+        <div class="text-sm font-bold text-slate-800">
+          <label class="cursor-pointer text-slate-900 hover:text-lime-600">
+            <span>Clique para selecionar os XMLs do eSocial</span>
+            <input id="fileInput" type="file" multiple accept=".xml" class="sr-only">
+          </label>
+          <span class="font-normal text-slate-500">ou arraste para cá</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-1">Suporta múltiplos XMLs de uma vez só: S-1200 (Folha), S-1210 (Pgtos), S-2200 (Admissões), S-2299 (Rescisões), S-5001/S-5011 (Totalizadores)</p>
+      </div>
+    </div>
+
+    <!-- CONTEÚDO DAS ABAS -->
+
+    <!-- ABA 1: FOLHA & RUBRICAS -->
+    <div id="tabContent-folha" class="tab-pane">
+      <div class="monet-card overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-900">Eventos de Remuneração Mensal (S-1200 / S-1210)</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Espelho de contracheque extraído diretamente do eSocial com rubricas do Domínio</p>
+          </div>
+          <span class="text-xs font-mono-code text-slate-400" id="infoFolhaCount">0 registros</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-left text-xs">
+            <thead class="bg-slate-50 text-slate-400 uppercase font-bold text-[10px] tracking-wider">
+              <tr>
+                <th class="px-6 py-3.5 font-extrabold">Evento / Competência</th>
+                <th class="px-6 py-3.5 font-extrabold">Colaborador / CPF</th>
+                <th class="px-6 py-3.5 font-extrabold text-right">Proventos</th>
+                <th class="px-6 py-3.5 font-extrabold text-right">Descontos</th>
+                <th class="px-6 py-3.5 font-extrabold text-right">Líquido a Pagar</th>
+                <th class="px-6 py-3.5 font-extrabold">Rubricas Analíticas</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyFolha" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                  Nenhum evento de remuneração (S-1200) carregado ainda. Arraste arquivos XML acima.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 2: ADMISSÕES -->
+    <div id="tabContent-admissoes" class="tab-pane hidden">
+      <div class="monet-card overflow-hidden">
+        <div class="p-5 border-b border-slate-100 bg-slate-50/50">
+          <h3 class="text-sm font-extrabold text-slate-900">Quadro de Colaboradores e Admissões (S-2200)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Dados contratuais, CBO, salários base e matrículas cadastradas no DP</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-left text-xs">
+            <thead class="bg-slate-50 text-slate-400 uppercase font-bold text-[10px] tracking-wider">
+              <tr>
+                <th class="px-6 py-3.5 font-extrabold">Nome Completo</th>
+                <th class="px-6 py-3.5 font-extrabold">CPF</th>
+                <th class="px-6 py-3.5 font-extrabold">Matrícula</th>
+                <th class="px-6 py-3.5 font-extrabold">Data Admissão</th>
+                <th class="px-6 py-3.5 font-extrabold">Cargo / CBO</th>
+                <th class="px-6 py-3.5 font-extrabold text-right">Salário Contratual</th>
+                <th class="px-6 py-3.5 font-extrabold">Tipo de Contrato</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyAdmissoes" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="7" class="px-6 py-12 text-center text-slate-400">
+                  Nenhuma admissão (S-2200) carregada ainda.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 3: RESCISÕES -->
+    <div id="tabContent-rescisoes" class="tab-pane hidden">
+      <div class="monet-card overflow-hidden">
+        <div class="p-5 border-b border-slate-100 bg-slate-50/50">
+          <h3 class="text-sm font-extrabold text-slate-900">Rescisões e Desligamentos (S-2299)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Motivos de desligamento pelo eSocial e verbas rescisórias apuradas</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-left text-xs">
+            <thead class="bg-slate-50 text-slate-400 uppercase font-bold text-[10px] tracking-wider">
+              <tr>
+                <th class="px-6 py-3.5 font-extrabold">CPF Trabalhador</th>
+                <th class="px-6 py-3.5 font-extrabold">Data Desligamento</th>
+                <th class="px-6 py-3.5 font-extrabold">Motivo Rescisório</th>
+                <th class="px-6 py-3.5 font-extrabold">Arquivo de Origem</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyRescisoes" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="4" class="px-6 py-12 text-center text-slate-400">
+                  Nenhuma rescisão (S-2299) carregada ainda.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 4: LANÇAMENTOS CONTÁBEIS (CT) -->
+    <div id="tabContent-contabil" class="tab-pane hidden">
+      <div class="monet-card overflow-hidden">
+        <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-900">Integração Contábil Automática (Módulo CT do Domínio)</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Partidas dobradas prontas para lançamento no balancete ou exportação para o Domínio Contábil</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">Partida Dobrada</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-left text-xs font-mono-code">
+            <thead class="bg-slate-50 text-slate-400 uppercase font-bold text-[10px] tracking-wider font-sans">
+              <tr>
+                <th class="px-6 py-3.5">Competência</th>
+                <th class="px-6 py-3.5">Conta Débito</th>
+                <th class="px-6 py-3.5">Conta Crédito</th>
+                <th class="px-6 py-3.5 text-right">Valor</th>
+                <th class="px-6 py-3.5">Histórico Padrão</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyContabil" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="5" class="px-6 py-12 text-center text-slate-400 font-sans">
+                  Carregue eventos de folha para gerar as partidas dobradas contábeis.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 5: AUDITORIA DE PASTAS DP NA REDE -->
+    <div id="tabContent-auditoria" class="tab-pane hidden space-y-4">
+      <div class="monet-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 class="text-base font-extrabold text-slate-900">Status das Pastas de Pessoal na Rede</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Verificação ao vivo das subpastas obrigatórias: FOLHA DE PAGAMENTO, ADMISSÕES, RESCISÕES e DECLARAÇÕES.</p>
+        </div>
+        <button id="btnAtualizarAuditoria" class="btn-monet-lime text-xs py-2 px-4 font-bold flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>Atualizar Auditoria</span>
+        </button>
+      </div>
+
+      <div class="monet-card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100 text-left text-xs">
+            <thead class="bg-slate-50 text-slate-400 uppercase font-bold text-[10px] tracking-wider">
+              <tr>
+                <th class="px-6 py-3.5 font-extrabold">Empresa / Razão Social</th>
+                <th class="px-6 py-3.5 font-extrabold">Regime Tributário</th>
+                <th class="px-6 py-3.5 font-extrabold text-center">Folha de Pagamento</th>
+                <th class="px-6 py-3.5 font-extrabold text-center">Admissões</th>
+                <th class="px-6 py-3.5 font-extrabold text-center">Rescisões</th>
+                <th class="px-6 py-3.5 font-extrabold text-center">Declarações</th>
+                <th class="px-6 py-3.5 font-extrabold text-center">Conformidade DP</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyAuditoriaDP" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="7" class="px-6 py-12 text-center text-slate-400">
+                  Auditando pastas na rede...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 6: DICIONÁRIO DOMÍNIO FO -->
+    <div id="tabContent-schema" class="tab-pane hidden space-y-4">
+      <div class="monet-card p-6">
+        <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="text-base font-extrabold text-slate-900">Arquitetura de Dados: 413 Tabelas do Módulo Folha (FO*)</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Dicionário técnico mapeado diretamente do banco de dados do Domínio Sistemas</p>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold font-mono-code">Total: 413</span>
+        </div>
+        <div id="containerSchema" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="text-slate-400 text-xs">Carregando mapa de tabelas...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER MONETRA DISCRETO -->
+  <footer class="text-center py-4 text-xs text-slate-400">
+    MC Assessoria Contábil &bull; Hub de Gestão & Automação &bull; Conectado ao Servidor \\192.168.15.2
+  </footer>
+
+  <!-- Scripts -->
+  <script src="folha-app.js"></script>
+</body>
+</html>
