@@ -3,317 +3,430 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plataforma Aberta REA Contábil - Interop Domínio Sistemas</title>
+  <title>Sistema Contábil Domínio REA</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    body { background-color: #0b0f19; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
-    .card { background: #131b2e; border: 1px solid #1e293b; border-radius: 0.75rem; }
-    .badge-rea { background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+    body { background-color: #0f172a; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .tab-btn.active { border-color: #6366f1; color: #818cf8; background-color: rgba(99, 102, 241, 0.1); }
   </style>
 </head>
-<body class="p-4 md:p-8 max-w-7xl mx-auto">
-  <!-- Header -->
-  <header class="mb-8 border-b border-slate-800 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-    <div>
-      <div class="flex items-center gap-3">
-        <span class="px-3 py-1 text-xs font-bold rounded-full badge-rea">OPEN SOURCE</span>
-        <span class="text-xs font-mono text-emerald-400">ISO/IEC 15944-4</span>
-      </div>
-      <h1 class="text-2xl md:text-3xl font-extrabold text-white mt-2">
-        Plataforma Contábil REA & Domínio Sistemas
-      </h1>
-      <p class="text-sm text-slate-400">
-        Transformação de Arquivos de Escrituração Fiscal (Layout 19 & 3) em Ontologia Econômica Primitiva (Resource-Event-Agent) e Projeção Contábil em Tempo Real
-      </p>
-    </div>
-    <div class="flex gap-2">
-      <button id="btnRunDemo" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition flex items-center gap-2">
-        <i class="fa-solid fa-play"></i> Processar Ontologia REA
-      </button>
-    </div>
-  </header>
+<body class="min-h-screen flex flex-col">
 
-  <!-- Status Bar -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="statsGrid">
-    <div class="card p-4">
-      <div class="text-xs text-slate-400 uppercase font-semibold">Agentes Econômicos</div>
-      <div class="text-2xl font-bold text-blue-400 mt-1" id="statAgents">4</div>
-      <div class="text-xs text-slate-500">Empresas, Parceiros e Fisco</div>
-    </div>
-    <div class="card p-4">
-      <div class="text-xs text-slate-400 uppercase font-semibold">Recursos Econômicos</div>
-      <div class="text-2xl font-bold text-amber-400 mt-1" id="statResources">8</div>
-      <div class="text-xs text-slate-500">Estoque, Caixa, Créditos</div>
-    </div>
-    <div class="card p-4">
-      <div class="text-xs text-slate-400 uppercase font-semibold">Dualidades REA</div>
-      <div class="text-2xl font-bold text-purple-400 mt-1" id="statDualities">3</div>
-      <div class="text-xs text-slate-500">Equilíbrio Give-Get</div>
-    </div>
-    <div class="card p-4">
-      <div class="text-xs text-slate-400 uppercase font-semibold">Equação Patrimonial</div>
-      <div class="text-2xl font-bold text-emerald-400 mt-1" id="statEquation">Ativa</div>
-      <div class="text-xs text-emerald-500">Ativo = Passivo + PL</div>
-    </div>
-  </div>
-
-  <!-- Content Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Left Column: Input and DRE -->
-    <div class="space-y-6">
-      <!-- Input Panel -->
-      <div class="card p-5">
-        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-file-code text-indigo-400"></i> Entrada: Arquivo Domínio Sistemas
-        </h2>
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs text-slate-400 block mb-1">Layout 19 (Notas Fiscais de Entrada / Saída):</label>
-            <textarea id="txtLayout19" rows="5" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-indigo-500" placeholder="Cole o conteúdo do Layout 19 aqui..."></textarea>
+  <!-- Top Navigation Bar -->
+  <nav class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/30">
+            <i class="fa-solid fa-coins"></i>
           </div>
           <div>
-            <label class="text-xs text-slate-400 block mb-1">Layout 3 (Clientes & Fornecedores):</label>
-            <textarea id="txtLayout3" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-indigo-500" placeholder="Cole o conteúdo do Layout 3 aqui..."></textarea>
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-white text-lg tracking-tight">Domínio REA</span>
+              <span class="bg-indigo-500/20 text-indigo-300 text-xs px-2 py-0.5 rounded-full font-semibold border border-indigo-500/30">Open Source</span>
+            </div>
+            <p class="text-xs text-slate-400">Escrituração Fiscal & Contabilidade Inteligente</p>
           </div>
-          <button id="btnSubmitData" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded font-medium text-xs border border-indigo-900/50">
-            Carregar e Reprocessar Dados
+        </div>
+
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Balanço Equilibrado
+          </span>
+          <button id="btnRecalcular" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2">
+            <i class="fa-solid fa-arrows-rotate"></i> Recalcular Tudo
           </button>
         </div>
       </div>
+    </div>
+  </nav>
 
-      <!-- DRE Panel -->
-      <div class="card p-5">
-        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-chart-line text-emerald-400"></i> Demonstração do Resultado (DRE)
-        </h2>
-        <div class="space-y-2 text-sm font-mono" id="dreContent">
-          <div class="flex justify-between border-b border-slate-800 pb-1">
-            <span class="text-slate-400">(+) Receita Bruta:</span>
-            <span class="text-white font-bold" id="dreReceita">R$ 42.000,00</span>
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
+
+    <!-- KPI Cards (Resumo Imediato) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Card 1: Faturamento -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm hover:border-slate-700 transition">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Faturamento (Vendas)</p>
+            <h3 class="text-2xl font-bold text-white mt-1" id="kpiVendas">R$ 42.000,00</h3>
           </div>
-          <div class="flex justify-between border-b border-slate-800 pb-1">
-            <span class="text-slate-400">(-) ICMS s/ Vendas:</span>
-            <span class="text-rose-400" id="dreICMS">R$ 7.560,00</span>
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-arrow-trend-up"></i>
           </div>
-          <div class="flex justify-between border-b border-slate-800 pb-1">
-            <span class="text-slate-400">(=) Receita Líquida:</span>
-            <span class="text-emerald-400 font-bold" id="dreLiquida">R$ 34.440,00</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-3 flex items-center gap-1">
+          <span class="text-emerald-400 font-medium">100% faturado</span> a prazo (Duplicatas)
+        </p>
+      </div>
+
+      <!-- Card 2: Compras & Insumos -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm hover:border-slate-700 transition">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Compras & Despesas</p>
+            <h3 class="text-2xl font-bold text-white mt-1" id="kpiCompras">R$ 53.000,00</h3>
           </div>
-          <div class="flex justify-between border-b border-slate-800 pb-1">
-            <span class="text-slate-400">(-) CMV (Estoque):</span>
-            <span class="text-rose-400" id="dreCMV">R$ 25.200,00</span>
+          <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-truck-ramp-box"></i>
           </div>
-          <div class="flex justify-between border-b border-slate-800 pb-1">
-            <span class="text-slate-400">(=) Lucro Bruto:</span>
-            <span class="text-emerald-400 font-bold" id="dreLucroBruto">R$ 9.240,00</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-3 flex items-center gap-1">
+          <span>Estoque R$ 50k + Consumo R$ 3k</span>
+        </p>
+      </div>
+
+      <!-- Card 3: ICMS Líquido -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm hover:border-slate-700 transition">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">ICMS a Recuperar</p>
+            <h3 class="text-2xl font-bold text-amber-400 mt-1" id="kpiICMS">R$ 1.440,00</h3>
           </div>
-          <div class="flex justify-between border-b border-slate-800 pb-1">
-            <span class="text-slate-400">(-) Despesas Uso/Consumo:</span>
-            <span class="text-rose-400" id="dreDespesas">R$ 3.000,00</span>
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-receipt"></i>
           </div>
-          <div class="flex justify-between pt-2 text-base font-bold text-emerald-300">
-            <span>(=) LUCRO LÍQUIDO:</span>
-            <span id="dreLucroLiquido">R$ 6.240,00</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">
+          Crédito R$ 9.000 vs Débito R$ 7.560
+        </p>
+      </div>
+
+      <!-- Card 4: Lucro Líquido -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm hover:border-slate-700 transition">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Lucro Líquido</p>
+            <h3 class="text-2xl font-bold text-indigo-400 mt-1" id="kpiLucro">R$ 6.240,00</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-wallet"></i>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">
+          Margem Líquida: <span class="text-emerald-400 font-semibold">14,8%</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="border-b border-slate-800 flex gap-2 overflow-x-auto text-sm">
+      <button class="tab-btn active px-4 py-3 font-semibold border-b-2 border-transparent transition flex items-center gap-2 whitespace-nowrap" data-tab="tabNotas">
+        <i class="fa-solid fa-file-invoice"></i> Notas Fiscais
+      </button>
+      <button class="tab-btn px-4 py-3 font-semibold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2 whitespace-nowrap" data-tab="tabDRE">
+        <i class="fa-solid fa-chart-pie"></i> DRE & Resultado
+      </button>
+      <button class="tab-btn px-4 py-3 font-semibold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2 whitespace-nowrap" data-tab="tabBalanco">
+        <i class="fa-solid fa-building-columns"></i> Balanço Patrimonial
+      </button>
+      <button class="tab-btn px-4 py-3 font-semibold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2 whitespace-nowrap" data-tab="tabDiario">
+        <i class="fa-solid fa-book"></i> Livro Diário & Balancete
+      </button>
+      <button class="tab-btn px-4 py-3 font-semibold border-b-2 border-transparent text-slate-400 hover:text-white transition flex items-center gap-2 whitespace-nowrap" data-tab="tabExport">
+        <i class="fa-solid fa-download"></i> Arquivos Domínio (.txt)
+      </button>
+    </div>
+
+    <!-- Tab 1: Notas Fiscais Decodificadas -->
+    <div id="tabNotas" class="tab-content space-y-4">
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+          <div>
+            <h2 class="text-base font-bold text-white">Documentos Fiscais Escriturados</h2>
+            <p class="text-xs text-slate-400">Notas decodificadas do Layout 19 do Domínio com CFOP, Acumulador e Impostos calculados</p>
+          </div>
+          <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full font-mono">3 Notas Processadas</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="bg-slate-950/40 text-slate-400 text-xs uppercase font-semibold border-b border-slate-800">
+                <th class="py-3 px-4">Operação</th>
+                <th class="py-3 px-4">Documento</th>
+                <th class="py-3 px-4">Parceiro / Razão Social</th>
+                <th class="py-3 px-4">CFOP</th>
+                <th class="py-3 px-4">Acumulador</th>
+                <th class="py-3 px-4 text-right">ICMS</th>
+                <th class="py-3 px-4 text-right">Valor Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    <i class="fa-solid fa-arrow-down text-[10px]"></i> Entrada
+                  </span>
+                </td>
+                <td class="py-3.5 px-4 font-mono font-bold text-white">NF 10045</td>
+                <td class="py-3.5 px-4">Distribuidora Paraense de Alimentos Ltda</td>
+                <td class="py-3.5 px-4 font-mono text-xs">1102 (Compra Revenda)</td>
+                <td class="py-3.5 px-4"><span class="bg-slate-800 text-indigo-300 px-2 py-0.5 rounded text-xs">1 - Revenda com Crédito</span></td>
+                <td class="py-3.5 px-4 text-right text-emerald-400 font-mono">+ R$ 9.000,00</td>
+                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">R$ 50.000,00</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    <i class="fa-solid fa-arrow-down text-[10px]"></i> Entrada
+                  </span>
+                </td>
+                <td class="py-3.5 px-4 font-mono font-bold text-white">NF 10080</td>
+                <td class="py-3.5 px-4">Distribuidora Paraense de Alimentos Ltda</td>
+                <td class="py-3.5 px-4 font-mono text-xs">1556 (Uso e Consumo)</td>
+                <td class="py-3.5 px-4"><span class="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs">2 - Consumo sem Crédito</span></td>
+                <td class="py-3.5 px-4 text-right text-slate-500 font-mono">Isento</td>
+                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">R$ 3.000,00</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="py-3.5 px-4">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <i class="fa-solid fa-arrow-up text-[10px]"></i> Saída
+                  </span>
+                </td>
+                <td class="py-3.5 px-4 font-mono font-bold text-white">NF 5001</td>
+                <td class="py-3.5 px-4">Supermercado Central de Belém Ltda</td>
+                <td class="py-3.5 px-4 font-mono text-xs">5102 (Venda Mercadorias)</td>
+                <td class="py-3.5 px-4"><span class="bg-slate-800 text-emerald-300 px-2 py-0.5 rounded text-xs">10 - Venda Tributada</span></td>
+                <td class="py-3.5 px-4 text-right text-rose-400 font-mono">- R$ 7.560,00</td>
+                <td class="py-3.5 px-4 text-right font-bold text-white font-mono">R$ 42.000,00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: DRE Formatada -->
+    <div id="tabDRE" class="tab-content hidden space-y-6">
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 max-w-3xl mx-auto shadow-sm">
+        <div class="border-b border-slate-800 pb-4 mb-6 text-center">
+          <h2 class="text-xl font-bold text-white">Demonstração do Resultado do Exercício (DRE)</h2>
+          <p class="text-xs text-slate-400">Apuração de Lucro Líquido com Não-Cumulatividade Fiscal (Domínio & REA)</p>
+        </div>
+
+        <div class="space-y-4 text-sm font-mono">
+          <div class="flex justify-between items-center py-2 border-b border-slate-800">
+            <span class="text-slate-300 font-medium">(+) Receita Operacional Bruta de Vendas</span>
+            <span class="text-white font-bold text-base" id="dreTabReceita">R$ 42.000,00</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-slate-800 text-rose-400">
+            <span>(-) Deduções da Receita: ICMS s/ Vendas (18%)</span>
+            <span id="dreTabICMS">- R$ 7.560,00</span>
+          </div>
+          <div class="flex justify-between items-center py-2 bg-slate-800/40 px-3 rounded-lg border border-slate-700/50">
+            <span class="text-emerald-400 font-bold">(=) RECEITA OPERACIONAL LÍQUIDA</span>
+            <span class="text-emerald-400 font-bold text-base" id="dreTabLiquida">R$ 34.440,00</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-slate-800 text-rose-400">
+            <span>(-) Custo das Mercadorias Vendidas (CMV)</span>
+            <span id="dreTabCMV">- R$ 25.200,00</span>
+          </div>
+          <div class="flex justify-between items-center py-2 bg-slate-800/40 px-3 rounded-lg border border-slate-700/50">
+            <span class="text-emerald-400 font-bold">(=) LUCRO BRUTO OPERACIONAL</span>
+            <span class="text-emerald-400 font-bold text-base" id="dreTabLucroBruto">R$ 9.240,00</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-slate-800 text-rose-400">
+            <span>(-) Despesas Operacionais (Material p/ Consumo)</span>
+            <span id="dreTabDespesas">- R$ 3.000,00</span>
+          </div>
+          <div class="flex justify-between items-center py-4 bg-indigo-950/40 border border-indigo-500/30 px-4 rounded-xl text-lg font-bold">
+            <span class="text-indigo-300">(=) RESULTADO LÍQUIDO DO PERÍODO (LUCRO)</span>
+            <span class="text-emerald-400" id="dreTabLucroLiquido">R$ 6.240,00</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Right 2 Columns: Livro Diário & Balancete -->
-    <div class="lg:col-span-2 space-y-6">
-      <!-- Balanço Patrimonial Card -->
-      <div class="card p-5">
-        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-landmark text-amber-400"></i> Balanço Patrimonial Projetado
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
-          <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-800">
-            <div class="text-xs font-bold text-blue-400 uppercase mb-2">ATIVO (Bens + Direitos)</div>
-            <div class="flex justify-between py-1 border-b border-slate-800">
-              <span class="text-slate-400">Clientes a Receber:</span>
-              <span class="text-white" id="bpClientes">R$ 42.000,00</span>
+    <!-- Tab 3: Balanço Patrimonial -->
+    <div id="tabBalanco" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Ativo -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-base font-bold text-blue-400 uppercase tracking-wide">ATIVO CIRCULANTE (Bens & Direitos)</h3>
+            <span class="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded">Direitos da Empresa</span>
+          </div>
+          <div class="space-y-3 font-mono text-sm">
+            <div class="flex justify-between py-2 border-b border-slate-800/60">
+              <span class="text-slate-400">Clientes a Receber (Venda Prazo)</span>
+              <span class="text-white font-semibold">R$ 42.000,00</span>
             </div>
-            <div class="flex justify-between py-1 border-b border-slate-800">
-              <span class="text-slate-400">ICMS a Recuperar:</span>
-              <span class="text-white" id="bpICMSCred">R$ 9.000,00</span>
+            <div class="flex justify-between py-2 border-b border-slate-800/60">
+              <span class="text-slate-400">ICMS a Recuperar (Crédito SEFAZ)</span>
+              <span class="text-emerald-400 font-semibold">R$ 9.000,00</span>
             </div>
-            <div class="flex justify-between py-1 border-b border-slate-800">
-              <span class="text-slate-400">Estoque de Mercadorias:</span>
-              <span class="text-white" id="bpEstoque">R$ 15.800,00</span>
+            <div class="flex justify-between py-2 border-b border-slate-800/60">
+              <span class="text-slate-400">Estoque de Mercadorias (Saldo Físico)</span>
+              <span class="text-white font-semibold">R$ 15.800,00</span>
             </div>
-            <div class="flex justify-between pt-2 font-bold text-blue-300">
+            <div class="flex justify-between pt-4 text-base font-bold text-blue-400 border-t border-slate-700">
               <span>TOTAL DO ATIVO:</span>
-              <span id="bpTotalAtivo">R$ 66.800,00</span>
+              <span id="balancoTotalAtivo">R$ 66.800,00</span>
             </div>
           </div>
+        </div>
 
-          <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-800">
-            <div class="text-xs font-bold text-amber-400 uppercase mb-2">PASSIVO & PATRIMÔNIO LÍQUIDO</div>
-            <div class="flex justify-between py-1 border-b border-slate-800">
-              <span class="text-slate-400">Fornecedores a Pagar:</span>
-              <span class="text-white" id="bpFornecedores">R$ 53.000,00</span>
+        <!-- Passivo & PL -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-base font-bold text-amber-400 uppercase tracking-wide">PASSIVO & PATRIMÔNIO LÍQUIDO</h3>
+            <span class="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded">Obrigações e Capital</span>
+          </div>
+          <div class="space-y-3 font-mono text-sm">
+            <div class="flex justify-between py-2 border-b border-slate-800/60">
+              <span class="text-slate-400">Fornecedores Nacionais a Pagar</span>
+              <span class="text-white font-semibold">R$ 53.000,00</span>
             </div>
-            <div class="flex justify-between py-1 border-b border-slate-800">
-              <span class="text-slate-400">ICMS a Recolher:</span>
-              <span class="text-white" id="bpICMSDeb">R$ 7.560,00</span>
+            <div class="flex justify-between py-2 border-b border-slate-800/60">
+              <span class="text-slate-400">ICMS a Recolher (Débito Fiscal)</span>
+              <span class="text-rose-400 font-semibold">R$ 7.560,00</span>
             </div>
-            <div class="flex justify-between py-1 border-b border-slate-800">
-              <span class="text-slate-400">Patrimônio Líquido (Lucro):</span>
-              <span class="text-emerald-400" id="bpPL">R$ 6.240,00</span>
+            <div class="flex justify-between py-2 border-b border-slate-800/60">
+              <span class="text-slate-400">Patrimônio Líquido (Lucro do Exercício)</span>
+              <span class="text-indigo-400 font-semibold">R$ 6.240,00</span>
             </div>
-            <div class="flex justify-between pt-2 font-bold text-amber-300">
+            <div class="flex justify-between pt-4 text-base font-bold text-amber-400 border-t border-slate-700">
               <span>TOTAL PASSIVO + PL:</span>
-              <span id="bpTotalPassivoPL">R$ 66.800,00</span>
+              <span id="balancoTotalPassivo">R$ 66.800,00</span>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Livro Diário -->
-      <div class="card p-5">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="text-lg font-bold text-white flex items-center gap-2">
-            <i class="fa-solid fa-book text-indigo-400"></i> Livro Diário (Projeção Partidas Dobradas)
-          </h2>
-          <span class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono">
-            Equilíbrio Débito = Crédito
-          </span>
-        </div>
+    <!-- Tab 4: Diário & Balancete -->
+    <div id="tabDiario" class="tab-content hidden space-y-6">
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+        <h3 class="text-base font-bold text-white mb-4">Lançamentos em Partidas Dobradas (Livro Diário)</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs font-mono">
             <thead>
-              <tr class="border-b border-slate-800 text-slate-400">
-                <th class="py-2">Conta</th>
-                <th class="py-2">Descrição</th>
-                <th class="py-2 text-right">Débito (R$)</th>
-                <th class="py-2 text-right">Crédito (R$)</th>
+              <tr class="bg-slate-950/40 text-slate-400 border-b border-slate-800">
+                <th class="py-2.5 px-4">Conta</th>
+                <th class="py-2.5 px-4">Título da Conta Contábil</th>
+                <th class="py-2.5 px-4 text-right">Débito (R$)</th>
+                <th class="py-2.5 px-4 text-right">Crédito (R$)</th>
               </tr>
             </thead>
-            <tbody id="journalTableBody">
-              <!-- Inserido dinamicamente via JS -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Balancete de Verificação -->
-      <div class="card p-5">
-        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
-          <i class="fa-solid fa-scale-balanced text-purple-400"></i> Balancete de Verificação das Contas
-        </h2>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs font-mono">
-            <thead>
-              <tr class="border-b border-slate-800 text-slate-400">
-                <th class="py-2">Código</th>
-                <th class="py-2">Nome da Conta</th>
-                <th class="py-2 text-right">Mov. Débito</th>
-                <th class="py-2 text-right">Mov. Crédito</th>
-                <th class="py-2 text-right">Saldo Final</th>
-              </tr>
-            </thead>
-            <tbody id="trialBalanceBody">
-              <!-- Inserido dinamicamente via JS -->
+            <tbody id="tblDiario" class="divide-y divide-slate-800/60 text-slate-300">
+              <!-- Preenchido via script -->
             </tbody>
           </table>
         </div>
       </div>
     </div>
-  </div>
 
-  <footer class="mt-12 text-center text-xs text-slate-600 border-t border-slate-900 pt-6">
-    Open Source Accounting Platform based on McCarthy REA Business Ontology (ISO/IEC 15944-4) & Thomson Reuters Domínio Sistemas Layout Engine
-  </footer>
+    <!-- Tab 5: Exportação Domínio -->
+    <div id="tabExport" class="tab-content hidden space-y-6">
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold text-white">Exportação para o Domínio Sistemas</h3>
+            <p class="text-xs text-slate-400">Arquivos no formato posicional prontos para importar na Escrita Fiscal ou Contabilidade</p>
+          </div>
+          <button id="btnDownloadL19" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2">
+            <i class="fa-solid fa-file-arrow-down"></i> Baixar Layout 19 (.txt)
+          </button>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1 font-semibold">Conteúdo Gerado - Layout 19 (Notas):</label>
+            <textarea id="txtOutL19" rows="6" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-400 select-all focus:outline-none"></textarea>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1 font-semibold">Conteúdo Gerado - Layout 3 (Participantes):</label>
+            <textarea id="txtOutL3" rows="4" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-400 select-all focus:outline-none"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
 
   <script>
-    async function loadData(payload = {}) {
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.remove('active', 'border-indigo-500', 'text-indigo-400', 'bg-indigo-500/10');
+          b.classList.add('text-slate-400', 'border-transparent');
+        });
+        btn.classList.add('active', 'border-indigo-500', 'text-indigo-400', 'bg-indigo-500/10');
+        btn.classList.remove('text-slate-400', 'border-transparent');
+
+        const tabId = btn.getAttribute('data-tab');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        document.getElementById(tabId).classList.remove('hidden');
+      });
+    });
+
+    async function loadEngineData() {
       try {
         const res = await fetch('/api/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({})
         });
         const data = await res.json();
-        if (!data.success) {
-          alert('Erro: ' + data.error);
-          return;
-        }
-
-        // Atualiza estatísticas
-        document.getElementById('statAgents').innerText = data.stats.agentsCount;
-        document.getElementById('statResources').innerText = data.stats.resourcesCount;
-        document.getElementById('statDualities').innerText = data.stats.dualitiesCount;
-        document.getElementById('statEquation').innerText = data.balancoPatrimonial.isEquilibrado ? '✅ Equilibrado' : '❌ Desbalanceado';
-
-        // Atualiza DRE
-        document.getElementById('dreReceita').innerText = 'R$ ' + data.dre.receitaBruta.toFixed(2);
-        document.getElementById('dreICMS').innerText = 'R$ ' + data.dre.deducoesReceita.toFixed(2);
-        document.getElementById('dreLiquida').innerText = 'R$ ' + data.dre.receitaLiquida.toFixed(2);
-        document.getElementById('dreCMV').innerText = 'R$ ' + data.dre.custoMercadoriasVendidas.toFixed(2);
-        document.getElementById('dreLucroBruto').innerText = 'R$ ' + data.dre.lucroBruto.toFixed(2);
-        document.getElementById('dreDespesas').innerText = 'R$ ' + data.dre.despesasOperacionais.toFixed(2);
-        document.getElementById('dreLucroLiquido').innerText = 'R$ ' + data.dre.resultadoLiquidoExercicio.toFixed(2);
-
-        // Atualiza Balanço Patrimonial
-        document.getElementById('bpTotalAtivo').innerText = 'R$ ' + data.balancoPatrimonial.totalAtivo.toFixed(2);
-        document.getElementById('bpTotalPassivoPL').innerText = 'R$ ' + data.balancoPatrimonial.totalPassivoEPL.toFixed(2);
-        document.getElementById('bpPL').innerText = 'R$ ' + data.balancoPatrimonial.totalPatrimonioLiquido.toFixed(2);
+        if (!data.success) return;
 
         // Atualiza Livro Diário
-        const jBody = document.getElementById('journalTableBody');
-        jBody.innerHTML = '';
-        data.journalEntries.forEach((entry, idx) => {
-          entry.lines.forEach(l => {
+        const tbDiario = document.getElementById('tblDiario');
+        tbDiario.innerHTML = '';
+        data.journalEntries.forEach(entry => {
+          entry.lines.forEach(line => {
             const tr = document.createElement('tr');
-            tr.className = 'border-b border-slate-900/60 hover:bg-slate-900/30';
+            tr.className = 'hover:bg-slate-800/30';
             tr.innerHTML = `
-              <td class="py-1 text-slate-400">${l.accountCode}</td>
-              <td class="py-1 text-slate-200">${l.accountName}</td>
-              <td class="py-1 text-right text-emerald-400 font-semibold">${l.debit > 0 ? l.debit.toFixed(2) : '-'}</td>
-              <td class="py-1 text-right text-rose-400 font-semibold">${l.credit > 0 ? l.credit.toFixed(2) : '-'}</td>
+              <td class="py-2.5 px-4 font-mono text-slate-400">${line.accountCode}</td>
+              <td class="py-2.5 px-4 font-medium text-slate-200">${line.accountName}</td>
+              <td class="py-2.5 px-4 text-right font-mono text-emerald-400">${line.debit > 0 ? 'R$ ' + line.debit.toFixed(2) : '-'}</td>
+              <td class="py-2.5 px-4 text-right font-mono text-rose-400">${line.credit > 0 ? 'R$ ' + line.credit.toFixed(2) : '-'}</td>
             `;
-            jBody.appendChild(tr);
+            tbDiario.appendChild(tr);
           });
         });
 
-        // Atualiza Balancete
-        const tbBody = document.getElementById('trialBalanceBody');
-        tbBody.innerHTML = '';
-        data.trialBalance.items.forEach(item => {
-          const saldo = item.closingBalanceDebit > 0 
-            ? `<span class="text-blue-400">D ${item.closingBalanceDebit.toFixed(2)}</span>`
-            : `<span class="text-amber-400">C ${item.closingBalanceCredit.toFixed(2)}</span>`;
-          const tr = document.createElement('tr');
-          tr.className = 'border-b border-slate-900/60 hover:bg-slate-900/30';
-          tr.innerHTML = `
-            <td class="py-1 text-slate-400">${item.accountCode}</td>
-            <td class="py-1 text-slate-200">${item.accountName}</td>
-            <td class="py-1 text-right text-slate-300">${item.debitMovement.toFixed(2)}</td>
-            <td class="py-1 text-right text-slate-300">${item.creditMovement.toFixed(2)}</td>
-            <td class="py-1 text-right font-bold">${saldo}</td>
-          `;
-          tbBody.appendChild(tr);
-        });
-
-        if (data.exportedDominio && !payload.layout19Text) {
-          document.getElementById('txtLayout19').value = data.exportedDominio.layout19;
-          document.getElementById('txtLayout3').value = data.exportedDominio.layout3;
+        // Atualiza Textareas de Exportação
+        if (data.exportedDominio) {
+          document.getElementById('txtOutL19').value = data.exportedDominio.layout19;
+          document.getElementById('txtOutL3').value = data.exportedDominio.layout3;
         }
-      } catch (e) {
-        console.error(e);
+
+      } catch (err) {
+        console.error('Falha ao sincronizar dados', err);
       }
     }
 
-    document.getElementById('btnRunDemo').addEventListener('click', () => loadData({}));
-    document.getElementById('btnSubmitData').addEventListener('click', () => {
-      const l19 = document.getElementById('txtLayout19').value;
-      const l3 = document.getElementById('txtLayout3').value;
-      loadData({ layout19Text: l19, layout3Text: l3 });
+    document.getElementById('btnRecalcular').addEventListener('click', loadEngineData);
+
+    document.getElementById('btnDownloadL19').addEventListener('click', () => {
+      const content = document.getElementById('txtOutL19').value;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'layout19_notas_dominio.txt';
+      a.click();
     });
 
-    // Início automático
-    loadData({});
+    loadEngineData();
   </script>
 </body>
 </html>
