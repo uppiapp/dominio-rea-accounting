@@ -220,7 +220,7 @@ export class AcumuladorMappingEngine {
       // SAÍDA (Venda de Mercadorias ou Serviços)
       const vlrTotal = invoice.valorContabil;
       const vlrICMSDebito = (acumulador.debitaICMS && invoice.valorICMS > 0) ? invoice.valorICMS : 0;
-      // Custo estimado do estoque baixado (margem presumida de 60% custo / 40% margem comercial)
+      // Custo estimado do estoque baixado (margem comercial padrão: 60% CMV / 40% margem bruta)
       const custoMercadoriaVendida = Math.round(vlrTotal * 0.60 * 100) / 100;
 
       const goodsRes = resourceRepo.getOrCreate(

@@ -70,6 +70,10 @@ describe('Domínio Sistemas Interoperability Engine', () => {
     assert.strictEqual(parsed.details.length, 1);
     assert.strictEqual(parsed.details[0].numeroDocumento, '1050');
     assert.strictEqual(parsed.details[0].valorContabil, 1500.00);
+    assert.strictEqual(parsed.details[0].baseICMS, 1500.00);
+    assert.strictEqual(parsed.details[0].aliquotaICMS, 18.00);
+    assert.strictEqual(parsed.details[0].valorICMS, 270.00);
+    assert.strictEqual(parsed.details[0].chaveAcesso, '15260398765432000109550010000010501234567890');
     assert.strictEqual(parsed.details[0].codigoAcumulador, 1);
     assert.strictEqual(parsed.details[0].cfop, '1102');
   });

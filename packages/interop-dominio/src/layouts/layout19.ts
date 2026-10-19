@@ -264,18 +264,22 @@ export class DominioLayout19Engine {
           aliquotaIPI: 0
         };
 
-        // Extrai valores tributários e chave de acesso se linha tiver tamanho suficiente
-        if (line.length >= 265) {
-          detail.baseICMS = parseMoney(line.slice(215, 228));
-          detail.aliquotaICMS = (parseInt(line.slice(228, 232), 10) || 0) / 100;
-          detail.valorICMS = parseMoney(line.slice(232, 245));
-          detail.isentasICMS = parseMoney(line.slice(245, 258));
-          detail.outrasICMS = parseMoney(line.slice(258, 271));
+        // Extrai valores tributários e chave de acesso alinhados exatamente com o gerador (Posições 208+)
+        if (line.length >= 277) {
+          detail.baseICMS = parseMoney(line.slice(247, 260));
+          detail.aliquotaICMS = (parseInt(line.slice(260, 264), 10) || 0) / 100;
+          detail.valorICMS = parseMoney(line.slice(264, 277));
         }
-        if (line.length >= 290) {
-          detail.valorIPI = parseMoney(line.slice(271, 284));
-          detail.aliquotaIPI = (parseInt(line.slice(284, 288), 10) || 0) / 100;
-          detail.chaveAcesso = line.slice(288, 332).trim();
+        if (line.length >= 303) {
+          detail.isentasICMS = parseMoney(line.slice(277, 290));
+          detail.outrasICMS = parseMoney(line.slice(290, 303));
+        }
+        if (line.length >= 320) {
+          detail.valorIPI = parseMoney(line.slice(303, 316));
+          detail.aliquotaIPI = (parseInt(line.slice(316, 320), 10) || 0) / 100;
+        }
+        if (line.length >= 364) {
+          detail.chaveAcesso = line.slice(320, 364).trim();
         }
 
         details.push(detail);

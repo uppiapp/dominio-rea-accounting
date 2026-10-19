@@ -101,8 +101,8 @@ export class AccountingProjector {
 
     } else if (saleEvt) {
       // 2. DUALIDADE DE VENDA COMERCIAL
-      // Lado 1: Faturamento e Contas a Receber
-      const recClaimEvt = duality.incrementEvents.find(e => e.type === EconomicEventType.GOODS_SALE || e.type === EconomicEventType.CASH_RECEIPT);
+      // Lado 1: Faturamento e Contas a Receber (incrementEvent)
+      const recClaimEvt = duality.incrementEvents[0];
       const grossValue = recClaimEvt ? recClaimEvt.stockFlows.reduce((s, f) => s + f.totalValue, 0) : 0;
 
       // Débito: Clientes a Receber

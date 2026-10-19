@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plataforma Aberta REA Contábil - Interop Domínio Sistemas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { background-color: #0b0f19; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
+    .card { background: #131b2e; border: 1px solid #1e293b; border-radius: 0.75rem; }
+    .badge-rea { background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+  </style>
+</head>
+<body class="p-4 md:p-8 max-w-7xl mx-auto">
+  <!-- Header -->
+  <header class="mb-8 border-b border-slate-800 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div>
+      <div class="flex items-center gap-3">
+        <span class="px-3 py-1 text-xs font-bold rounded-full badge-rea">OPEN SOURCE</span>
+        <span class="text-xs font-mono text-emerald-400">ISO/IEC 15944-4</span>
+      </div>
+      <h1 class="text-2xl md:text-3xl font-extrabold text-white mt-2">
+        Plataforma Contábil REA & Domínio Sistemas
+      </h1>
+      <p class="text-sm text-slate-400">
+        Transformação de Arquivos de Escrituração Fiscal (Layout 19 & 3) em Ontologia Econômica Primitiva (Resource-Event-Agent) e Projeção Contábil em Tempo Real
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <button id="btnRunDemo" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium shadow-lg shadow-indigo-500/20 transition flex items-center gap-2">
+        <i class="fa-solid fa-play"></i> Processar Ontologia REA
+      </button>
+    </div>
+  </header>
+
+  <!-- Status Bar -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="statsGrid">
+    <div class="card p-4">
+      <div class="text-xs text-slate-400 uppercase font-semibold">Agentes Econômicos</div>
+      <div class="text-2xl font-bold text-blue-400 mt-1" id="statAgents">4</div>
+      <div class="text-xs text-slate-500">Empresas, Parceiros e Fisco</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-xs text-slate-400 uppercase font-semibold">Recursos Econômicos</div>
+      <div class="text-2xl font-bold text-amber-400 mt-1" id="statResources">8</div>
+      <div class="text-xs text-slate-500">Estoque, Caixa, Créditos</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-xs text-slate-400 uppercase font-semibold">Dualidades REA</div>
+      <div class="text-2xl font-bold text-purple-400 mt-1" id="statDualities">3</div>
+      <div class="text-xs text-slate-500">Equilíbrio Give-Get</div>
+    </div>
+    <div class="card p-4">
+      <div class="text-xs text-slate-400 uppercase font-semibold">Equação Patrimonial</div>
+      <div class="text-2xl font-bold text-emerald-400 mt-1" id="statEquation">Ativa</div>
+      <div class="text-xs text-emerald-500">Ativo = Passivo + PL</div>
+    </div>
+  </div>
+
+  <!-- Content Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left Column: Input and DRE -->
+    <div class="space-y-6">
+      <!-- Input Panel -->
+      <div class="card p-5">
+        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-file-code text-indigo-400"></i> Entrada: Arquivo Domínio Sistemas
+        </h2>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Layout 19 (Notas Fiscais de Entrada / Saída):</label>
+            <textarea id="txtLayout19" rows="5" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-indigo-500" placeholder="Cole o conteúdo do Layout 19 aqui..."></textarea>
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">Layout 3 (Clientes & Fornecedores):</label>
+            <textarea id="txtLayout3" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-indigo-500" placeholder="Cole o conteúdo do Layout 3 aqui..."></textarea>
+          </div>
+          <button id="btnSubmitData" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded font-medium text-xs border border-indigo-900/50">
+            Carregar e Reprocessar Dados
+          </button>
+        </div>
+      </div>
+
+      <!-- DRE Panel -->
+      <div class="card p-5">
+        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-chart-line text-emerald-400"></i> Demonstração do Resultado (DRE)
+        </h2>
+        <div class="space-y-2 text-sm font-mono" id="dreContent">
+          <div class="flex justify-between border-b border-slate-800 pb-1">
+            <span class="text-slate-400">(+) Receita Bruta:</span>
+            <span class="text-white font-bold" id="dreReceita">R$ 42.000,00</span>
+          </div>
+          <div class="flex justify-between border-b border-slate-800 pb-1">
+            <span class="text-slate-400">(-) ICMS s/ Vendas:</span>
+            <span class="text-rose-400" id="dreICMS">R$ 7.560,00</span>
+          </div>
+          <div class="flex justify-between border-b border-slate-800 pb-1">
+            <span class="text-slate-400">(=) Receita Líquida:</span>
+            <span class="text-emerald-400 font-bold" id="dreLiquida">R$ 34.440,00</span>
+          </div>
+          <div class="flex justify-between border-b border-slate-800 pb-1">
+            <span class="text-slate-400">(-) CMV (Estoque):</span>
+            <span class="text-rose-400" id="dreCMV">R$ 25.200,00</span>
+          </div>
+          <div class="flex justify-between border-b border-slate-800 pb-1">
+            <span class="text-slate-400">(=) Lucro Bruto:</span>
+            <span class="text-emerald-400 font-bold" id="dreLucroBruto">R$ 9.240,00</span>
+          </div>
+          <div class="flex justify-between border-b border-slate-800 pb-1">
+            <span class="text-slate-400">(-) Despesas Uso/Consumo:</span>
+            <span class="text-rose-400" id="dreDespesas">R$ 3.000,00</span>
+          </div>
+          <div class="flex justify-between pt-2 text-base font-bold text-emerald-300">
+            <span>(=) LUCRO LÍQUIDO:</span>
+            <span id="dreLucroLiquido">R$ 6.240,00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right 2 Columns: Livro Diário & Balancete -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Balanço Patrimonial Card -->
+      <div class="card p-5">
+        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-landmark text-amber-400"></i> Balanço Patrimonial Projetado
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
+          <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-800">
+            <div class="text-xs font-bold text-blue-400 uppercase mb-2">ATIVO (Bens + Direitos)</div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Clientes a Receber:</span>
+              <span class="text-white" id="bpClientes">R$ 42.000,00</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">ICMS a Recuperar:</span>
+              <span class="text-white" id="bpICMSCred">R$ 9.000,00</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Estoque de Mercadorias:</span>
+              <span class="text-white" id="bpEstoque">R$ 15.800,00</span>
+            </div>
+            <div class="flex justify-between pt-2 font-bold text-blue-300">
+              <span>TOTAL DO ATIVO:</span>
+              <span id="bpTotalAtivo">R$ 66.800,00</span>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/60 p-4 rounded-lg border border-slate-800">
+            <div class="text-xs font-bold text-amber-400 uppercase mb-2">PASSIVO & PATRIMÔNIO LÍQUIDO</div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Fornecedores a Pagar:</span>
+              <span class="text-white" id="bpFornecedores">R$ 53.000,00</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">ICMS a Recolher:</span>
+              <span class="text-white" id="bpICMSDeb">R$ 7.560,00</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Patrimônio Líquido (Lucro):</span>
+              <span class="text-emerald-400" id="bpPL">R$ 6.240,00</span>
+            </div>
+            <div class="flex justify-between pt-2 font-bold text-amber-300">
+              <span>TOTAL PASSIVO + PL:</span>
+              <span id="bpTotalPassivoPL">R$ 66.800,00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Livro Diário -->
+      <div class="card p-5">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-book text-indigo-400"></i> Livro Diário (Projeção Partidas Dobradas)
+          </h2>
+          <span class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono">
+            Equilíbrio Débito = Crédito
+          </span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="py-2">Conta</th>
+                <th class="py-2">Descrição</th>
+                <th class="py-2 text-right">Débito (R$)</th>
+                <th class="py-2 text-right">Crédito (R$)</th>
+              </tr>
+            </thead>
+            <tbody id="journalTableBody">
+              <!-- Inserido dinamicamente via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Balancete de Verificação -->
+      <div class="card p-5">
+        <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-scale-balanced text-purple-400"></i> Balancete de Verificação das Contas
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="py-2">Código</th>
+                <th class="py-2">Nome da Conta</th>
+                <th class="py-2 text-right">Mov. Débito</th>
+                <th class="py-2 text-right">Mov. Crédito</th>
+                <th class="py-2 text-right">Saldo Final</th>
+              </tr>
+            </thead>
+            <tbody id="trialBalanceBody">
+              <!-- Inserido dinamicamente via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-12 text-center text-xs text-slate-600 border-t border-slate-900 pt-6">
+    Open Source Accounting Platform based on McCarthy REA Business Ontology (ISO/IEC 15944-4) & Thomson Reuters Domínio Sistemas Layout Engine
+  </footer>
+
+  <script>
+    async function loadData(payload = {}) {
+      try {
+        const res = await fetch('/api/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.success) {
+          alert('Erro: ' + data.error);
+          return;
+        }
+
+        // Atualiza estatísticas
+        document.getElementById('statAgents').innerText = data.stats.agentsCount;
+        document.getElementById('statResources').innerText = data.stats.resourcesCount;
+        document.getElementById('statDualities').innerText = data.stats.dualitiesCount;
+        document.getElementById('statEquation').innerText = data.balancoPatrimonial.isEquilibrado ? '✅ Equilibrado' : '❌ Desbalanceado';
+
+        // Atualiza DRE
+        document.getElementById('dreReceita').innerText = 'R$ ' + data.dre.receitaBruta.toFixed(2);
+        document.getElementById('dreICMS').innerText = 'R$ ' + data.dre.deducoesReceita.toFixed(2);
+        document.getElementById('dreLiquida').innerText = 'R$ ' + data.dre.receitaLiquida.toFixed(2);
+        document.getElementById('dreCMV').innerText = 'R$ ' + data.dre.custoMercadoriasVendidas.toFixed(2);
+        document.getElementById('dreLucroBruto').innerText = 'R$ ' + data.dre.lucroBruto.toFixed(2);
+        document.getElementById('dreDespesas').innerText = 'R$ ' + data.dre.despesasOperacionais.toFixed(2);
+        document.getElementById('dreLucroLiquido').innerText = 'R$ ' + data.dre.resultadoLiquidoExercicio.toFixed(2);
+
+        // Atualiza Balanço Patrimonial
+        document.getElementById('bpTotalAtivo').innerText = 'R$ ' + data.balancoPatrimonial.totalAtivo.toFixed(2);
+        document.getElementById('bpTotalPassivoPL').innerText = 'R$ ' + data.balancoPatrimonial.totalPassivoEPL.toFixed(2);
+        document.getElementById('bpPL').innerText = 'R$ ' + data.balancoPatrimonial.totalPatrimonioLiquido.toFixed(2);
+
+        // Atualiza Livro Diário
+        const jBody = document.getElementById('journalTableBody');
+        jBody.innerHTML = '';
+        data.journalEntries.forEach((entry, idx) => {
+          entry.lines.forEach(l => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b border-slate-900/60 hover:bg-slate-900/30';
+            tr.innerHTML = `
+              <td class="py-1 text-slate-400">${l.accountCode}</td>
+              <td class="py-1 text-slate-200">${l.accountName}</td>
+              <td class="py-1 text-right text-emerald-400 font-semibold">${l.debit > 0 ? l.debit.toFixed(2) : '-'}</td>
+              <td class="py-1 text-right text-rose-400 font-semibold">${l.credit > 0 ? l.credit.toFixed(2) : '-'}</td>
+            `;
+            jBody.appendChild(tr);
+          });
+        });
+
+        // Atualiza Balancete
+        const tbBody = document.getElementById('trialBalanceBody');
+        tbBody.innerHTML = '';
+        data.trialBalance.items.forEach(item => {
+          const saldo = item.closingBalanceDebit > 0 
+            ? `<span class="text-blue-400">D ${item.closingBalanceDebit.toFixed(2)}</span>`
+            : `<span class="text-amber-400">C ${item.closingBalanceCredit.toFixed(2)}</span>`;
+          const tr = document.createElement('tr');
+          tr.className = 'border-b border-slate-900/60 hover:bg-slate-900/30';
+          tr.innerHTML = `
+            <td class="py-1 text-slate-400">${item.accountCode}</td>
+            <td class="py-1 text-slate-200">${item.accountName}</td>
+            <td class="py-1 text-right text-slate-300">${item.debitMovement.toFixed(2)}</td>
+            <td class="py-1 text-right text-slate-300">${item.creditMovement.toFixed(2)}</td>
+            <td class="py-1 text-right font-bold">${saldo}</td>
+          `;
+          tbBody.appendChild(tr);
+        });
+
+        if (data.exportedDominio && !payload.layout19Text) {
+          document.getElementById('txtLayout19').value = data.exportedDominio.layout19;
+          document.getElementById('txtLayout3').value = data.exportedDominio.layout3;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    document.getElementById('btnRunDemo').addEventListener('click', () => loadData({}));
+    document.getElementById('btnSubmitData').addEventListener('click', () => {
+      const l19 = document.getElementById('txtLayout19').value;
+      const l3 = document.getElementById('txtLayout3').value;
+      loadData({ layout19Text: l19, layout3Text: l3 });
+    });
+
+    // Início automático
+    loadData({});
+  </script>
+</body>
+</html>
