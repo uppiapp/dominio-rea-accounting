@@ -4408,7 +4408,12 @@ function renderItensExplorador(pastas, arquivos) {
         let corIcone = 'text-slate-400';
         let badgeTipo = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase">${f.ext ? f.ext.replace('.', '') : 'ARQ'}</span>`;
 
-        if (f.isPdf) {
+        if (f.isZip) {
+          iconeTipo = 'archive';
+          corIcone = 'text-amber-500';
+          const countTxt = f.zipCount ? `${f.zipCount} XMLs` : 'ZIP';
+          badgeTipo = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">ZIP (${countTxt})</span>`;
+        } else if (f.isPdf) {
           iconeTipo = 'file-text';
           corIcone = 'text-rose-600';
           badgeTipo = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700">PDF</span>';
@@ -4431,7 +4436,7 @@ function renderItensExplorador(pastas, arquivos) {
         tr.innerHTML = `
           <td class="py-2.5 px-4 font-semibold text-slate-800 flex items-center gap-2 min-w-[200px] truncate" title="${f.name}">
             <i data-lucide="${iconeTipo}" class="w-4 h-4 ${corIcone} shrink-0"></i>
-            <span class="truncate">${f.name}</span>
+            <span class="truncate ${f.isZip ? 'cursor-pointer hover:text-amber-700 font-bold' : ''}" ${f.isZip ? `onclick="abrirVisualizadorZip('${encodeURIComponent(f.path)}', '${encodeURIComponent(f.name)}')"` : ''}>${f.name}</span>
           </td>
           <td class="py-2.5 px-4 text-center whitespace-nowrap">
             ${badgeTipo}
@@ -4444,6 +4449,16 @@ function renderItensExplorador(pastas, arquivos) {
           </td>
           <td class="py-2.5 px-4 text-center whitespace-nowrap">
             <div class="flex items-center justify-center gap-1.5">
+              ${f.isZip ? `
+                <button onclick="abrirVisualizadorZip('${encodeURIComponent(f.path)}', '${encodeURIComponent(f.name)}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 hover:text-white text-amber-800 text-xs font-bold transition flex items-center gap-1 border border-amber-300" title="Ver Arquivos dentro deste ZIP">
+                  <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                  <span>Ver Notas</span>
+                </button>
+                <button onclick="descompactarZipNaPasta('${encodeURIComponent(f.path)}')" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-600 hover:text-white text-emerald-800 text-xs font-bold transition flex items-center gap-1 border border-emerald-300" title="Descompactar Todos os XMLs nesta Pasta">
+                  <i data-lucide="folder-output" class="w-3.5 h-3.5"></i>
+                  <span>Extrair</span>
+                </button>
+              ` : ''}
               ${f.isPdf || f.isXml ? `
                 <button onclick="visualizarArquivoWeb('${encodeURIComponent(f.path)}', '${encodeURIComponent(f.name)}', '${f.ext}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-500 hover:text-slate-950 text-slate-700 transition" title="Visualizar Direto na Web">
                   <i data-lucide="eye" class="w-3.5 h-3.5"></i>
@@ -4517,5 +4532,183 @@ async function abrirCaminhoAtualNoWindowsExplorer() {
     showToast(`Erro ao abrir Windows: ${e.message}`, 'error');
   }
 }
+
+// =========================================================================
+// MÓDULO VISUALIZADOR DE ARQUIVOS ZIP & EXTRAÇÃO DE NOTAS FISCAIS
+// =========================================================================
+
+let zipAtualCaminho = '';
+let zipAtualNome = '';
+let arquivosZipCache = [];
+
+// Abrir Modal do Visualizador de ZIP
+async function abrirVisualizadorZip(encPath, encName) {
+  const path = decodeURIComponent(encPath);
+  const name = decodeURIComponent(encName);
+  zipAtualCaminho = path;
+  zipAtualNome = name;
+
+  const modal = document.getElementById('modalVisualizadorZip');
+  const titulo = document.getElementById('zipModalTitulo');
+  const subtitulo = document.getElementById('zipModalCaminho');
+  const badge = document.getElementById('zipModalBadgeContador');
+  const tbody = document.getElementById('tbodyArquivosZip');
+  const searchInput = document.getElementById('inputBuscaZip');
+
+  if (searchInput) searchInput.value = '';
+  if (titulo) titulo.textContent = name;
+  if (subtitulo) subtitulo.textContent = path;
+  if (badge) badge.textContent = 'Lendo arquivo...';
+  if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400 font-semibold">Carregando notas fiscais do arquivo ZIP...</td></tr>`;
+
+  if (modal) modal.classList.remove('hidden');
+
+  try {
+    const res = await fetch(`/api/explorer/zip/browse?path=${encodeURIComponent(path)}`);
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Erro ao abrir pacote ZIP');
+    }
+
+    arquivosZipCache = data.arquivos || [];
+    if (badge) badge.textContent = `${arquivosZipCache.length} nota(s) / arquivo(s)`;
+    renderArquivosZip(arquivosZipCache);
+  } catch (err) {
+    showToast(`Erro ao ler ZIP: ${err.message}`, 'error');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-rose-500 font-semibold">Erro ao abrir: ${err.message}</td></tr>`;
+  }
+}
+
+// Fechar Visualizador ZIP
+function fecharVisualizadorZip() {
+  const modal = document.getElementById('modalVisualizadorZip');
+  if (modal) modal.classList.add('hidden');
+}
+
+// Renderizar Tabela de Arquivos do ZIP
+function renderArquivosZip(lista) {
+  const tbody = document.getElementById('tbodyArquivosZip');
+  const statusEl = document.getElementById('zipModalRodapeStatus');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!lista || lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400 font-semibold">Nenhum arquivo encontrado dentro deste pacote ZIP.</td></tr>`;
+    if (statusEl) statusEl.textContent = 'Pacote vazio';
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = `Mostrando ${lista.length} de ${arquivosZipCache.length} arquivo(s)`;
+
+  lista.forEach(f => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-50/80 transition';
+
+    let badgeTipo = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase">${f.ext ? f.ext.replace('.', '') : 'ARQ'}</span>`;
+    let corIcone = 'text-slate-400';
+    let icone = 'file-text';
+
+    if (f.isXml) {
+      badgeTipo = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">XML NF-e</span>';
+      corIcone = 'text-emerald-600';
+      icone = 'receipt';
+    } else if (f.isPdf) {
+      badgeTipo = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700">PDF</span>';
+      corIcone = 'text-rose-600';
+      icone = 'file-text';
+    }
+
+    tr.innerHTML = `
+      <td class="py-2.5 px-4 font-semibold text-slate-800 flex items-center gap-2 min-w-[280px] truncate" title="${f.name}">
+        <i data-lucide="${icone}" class="w-4 h-4 ${corIcone} shrink-0"></i>
+        <span class="truncate font-mono text-xs">${f.name}</span>
+      </td>
+      <td class="py-2.5 px-4 text-center whitespace-nowrap">
+        ${badgeTipo}
+      </td>
+      <td class="py-2.5 px-4 text-right font-mono text-slate-600 whitespace-nowrap">
+        ${f.sizeFormatted}
+      </td>
+      <td class="py-2.5 px-4 text-center whitespace-nowrap">
+        <div class="flex items-center justify-center gap-1.5">
+          <button onclick="visualizarArquivoDoZip('${encodeURIComponent(f.entryName)}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-700 text-xs font-bold transition flex items-center gap-1 border border-emerald-200" title="Visualizar Conteúdo do XML">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            <span>Ver XML</span>
+          </button>
+          <button onclick="baixarArquivoDoZip('${encodeURIComponent(f.entryName)}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-700 transition" title="Baixar este arquivo">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  refreshIcons();
+}
+
+// Filtrar arquivos dentro do ZIP
+function filtrarArquivosZip(termo) {
+  const query = (termo || '').toLowerCase().trim();
+  if (!query) {
+    renderArquivosZip(arquivosZipCache);
+    return;
+  }
+  const filtrados = arquivosZipCache.filter(f => f.name.toLowerCase().includes(query) || f.entryName.toLowerCase().includes(query));
+  renderArquivosZip(filtrados);
+}
+
+// Visualizar arquivo de dentro do ZIP
+function visualizarArquivoDoZip(encEntryName) {
+  const entryName = decodeURIComponent(encEntryName);
+  const url = `/api/explorer/zip/file?path=${encodeURIComponent(zipAtualCaminho)}&entry=${encodeURIComponent(entryName)}`;
+  window.open(url, '_blank');
+}
+
+// Baixar arquivo de dentro do ZIP
+function baixarArquivoDoZip(encEntryName) {
+  const entryName = decodeURIComponent(encEntryName);
+  const url = `/api/explorer/zip/file?path=${encodeURIComponent(zipAtualCaminho)}&entry=${encodeURIComponent(entryName)}&download=1`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// Descompactar o ZIP aberto no modal
+async function descompactarZipAtual() {
+  if (!zipAtualCaminho) return;
+  await descompactarZipNaPasta(encodeURIComponent(zipAtualCaminho));
+  fecharVisualizadorZip();
+}
+
+// Descompactar ZIP diretamente na pasta
+async function descompactarZipNaPasta(encPath) {
+  const path = decodeURIComponent(encPath);
+  try {
+    showToast('Extraindo notas fiscais na pasta...', 'info');
+    const res = await fetch('/api/explorer/zip/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Erro ao extrair');
+    }
+
+    showToast(`✅ ${data.message}`, 'success');
+
+    // Recarrega a pasta atual do explorador para exibir os XMLs descompactados imediatamente!
+    if (caminhoAtualExplorador) {
+      carregarPastaExplorador(caminhoAtualExplorador);
+    }
+  } catch (err) {
+    showToast(`Erro na extração: ${err.message}`, 'error');
+  }
+}
+
 
 

@@ -2784,6 +2784,79 @@
   </div>
 
   <!-- ========================================================================= -->
+  <!-- MODAL: VISUALIZADOR DE CONTEÚDO ZIP (NOTAS FISCAIS & DOCUMENTOS) -->
+  <!-- ========================================================================= -->
+  <div id="modalVisualizadorZip" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div class="bg-white rounded-[28px] max-w-4xl w-full h-[85vh] shadow-2xl border border-slate-100 flex flex-col overflow-hidden">
+      
+      <!-- Cabeçalho do Modal ZIP -->
+      <div class="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-amber-50/50">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+            <i data-lucide="archive" class="w-5 h-5"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-extrabold text-slate-800 truncate" id="zipModalTitulo">Conteúdo do Pacote ZIP</h3>
+              <span id="zipModalBadgeContador" class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">0 arquivos</span>
+            </div>
+            <p class="text-xs text-slate-500 truncate" id="zipModalCaminho">Carregando...</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="descompactarZipAtual()" id="btnExtrairZipModal" class="btn-monet-lime text-xs px-4 py-2 shadow-sm flex items-center gap-1.5" title="Extrair todas as notas fiscais diretamente na pasta">
+            <i data-lucide="folder-output" class="w-4 h-4"></i>
+            <span>Descompactar na Pasta</span>
+          </button>
+          <button onclick="fecharVisualizadorZip()" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center border border-slate-200 transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Filtro / Busca dentro do ZIP -->
+      <div class="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3 text-xs">
+        <div class="relative flex-1 max-w-md">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5"></i>
+          <input type="text" id="inputBuscaZip" oninput="filtrarArquivosZip(this.value)" placeholder="Buscar nota por chave, número ou nome..." class="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-amber-500 outline-none">
+        </div>
+        <div class="text-[11px] text-slate-500 font-medium">
+          💡 Clique em "Ver XML" para inspecionar qualquer nota fiscal diretamente
+        </div>
+      </div>
+
+      <!-- Tabela de Arquivos do ZIP -->
+      <div class="flex-1 overflow-y-auto p-4 sm:p-5 bg-[#FAFBFD]">
+        <div class="monet-card bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-50 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <tr>
+                <th class="py-2.5 px-4">Nota Fiscal / Arquivo</th>
+                <th class="py-2.5 px-4 text-center">Tipo</th>
+                <th class="py-2.5 px-4 text-right">Tamanho</th>
+                <th class="py-2.5 px-4 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyArquivosZip" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Gerado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Rodapé do Modal ZIP -->
+      <div class="p-3 bg-white border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 px-5">
+        <span id="zipModalRodapeStatus">Pronto para visualização</span>
+        <button onclick="fecharVisualizadorZip()" class="px-4 py-1.5 rounded-full text-slate-600 hover:bg-slate-100 font-semibold transition">
+          Fechar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
   <!-- MODAL: CONEXÃO DE REDE & ACESSO REMOTO AUTOMÁTICO (MONETRA STYLE) -->
   <!-- ========================================================================= -->
   <div id="modalConexaoRede" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">

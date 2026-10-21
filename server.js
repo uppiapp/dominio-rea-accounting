@@ -1140,6 +1140,16 @@ app.get('/api/explorer/browse', (req, res) => {
         } else if (entry.isFile()) {
           const fileStat = fs.statSync(fullPath);
           const ext = path.extname(entry.name).toLowerCase();
+          const isZip = ext === '.zip';
+          let zipCount = 0;
+          if (isZip) {
+            try {
+              const AdmZip = require('adm-zip');
+              const z = new AdmZip(fullPath);
+              zipCount = z.getEntries().filter(e => !e.isDirectory).length;
+            } catch(e) {}
+          }
+
           arquivos.push({
             name: entry.name,
             path: fullPath,
@@ -1149,6 +1159,8 @@ app.get('/api/explorer/browse', (req, res) => {
             mtime: fileStat.mtime,
             isPdf: ext === '.pdf',
             isXml: ext === '.xml',
+            isZip,
+            zipCount,
             isSpreadsheet: ['.xlsx', '.xls', '.csv'].includes(ext),
             isImage: ['.jpg', '.jpeg', '.png', '.webp'].includes(ext)
           });
@@ -1208,15 +1220,138 @@ app.get('/api/explorer/file', (req, res) => {
     }
 
     const filename = path.basename(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     const isDownload = req.query.download === '1';
 
     if (isDownload) {
       res.download(filePath, filename);
     } else {
+      if (ext === '.xml') {
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      } else if (ext === '.pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+      }
       res.sendFile(filePath);
     }
   } catch (err) {
     res.status(500).send(`Erro ao abrir arquivo: ${err.message}`);
+  }
+});
+
+// Endpoint: Listar arquivos contidos dentro de um arquivo ZIP
+app.get('/api/explorer/zip/browse', (req, res) => {
+  try {
+    let filePath = req.query.path || '';
+    if (!filePath) return res.status(400).json({ error: 'Caminho do arquivo não fornecido.' });
+
+    if (fs.existsSync('X:\\')) {
+      filePath = filePath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    filePath = path.normalize(filePath);
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Arquivo ZIP não encontrado.' });
+
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(filePath);
+    const entries = zip.getEntries();
+
+    const arquivos = entries.filter(e => !e.isDirectory).map(e => {
+      const ext = path.extname(e.entryName).toLowerCase();
+      return {
+        name: path.basename(e.entryName),
+        entryName: e.entryName,
+        size: e.header.size,
+        sizeFormatted: formatBytes(e.header.size),
+        ext,
+        isPdf: ext === '.pdf',
+        isXml: ext === '.xml',
+        isSpreadsheet: ['.xlsx', '.xls', '.csv'].includes(ext),
+        isImage: ['.jpg', '.jpeg', '.png', '.webp'].includes(ext)
+      };
+    });
+
+    res.json({
+      success: true,
+      zipPath: filePath,
+      zipName: path.basename(filePath),
+      totalArquivos: arquivos.length,
+      arquivos
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint: Visualizar ou Baixar arquivo de dentro de um ZIP
+app.get('/api/explorer/zip/file', (req, res) => {
+  try {
+    let filePath = req.query.path || '';
+    const entryName = req.query.entry || '';
+    if (!filePath || !entryName) return res.status(400).send('Parâmetros inválidos.');
+
+    if (fs.existsSync('X:\\')) {
+      filePath = filePath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    filePath = path.normalize(filePath);
+
+    if (!fs.existsSync(filePath)) return res.status(404).send('Arquivo ZIP não encontrado.');
+
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(filePath);
+    const entry = zip.getEntry(entryName);
+    if (!entry) return res.status(404).send('Arquivo não encontrado dentro do ZIP.');
+
+    const ext = path.extname(entryName).toLowerCase();
+    const isDownload = req.query.download === '1';
+
+    if (isDownload) {
+      res.setHeader('Content-Disposition', `attachment; filename="${path.basename(entryName)}"`);
+      return res.send(zip.readFile(entry));
+    }
+
+    if (ext === '.xml') {
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      return res.send(zip.readAsText(entry));
+    } else if (ext === '.pdf') {
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.send(zip.readFile(entry));
+    } else {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      return res.send(zip.readAsText(entry));
+    }
+  } catch (err) {
+    res.status(500).send(`Erro ao ler arquivo do ZIP: ${err.message}`);
+  }
+});
+
+// Endpoint: Descompactar todos os arquivos do ZIP diretamente na pasta
+app.post('/api/explorer/zip/extract', (req, res) => {
+  try {
+    let filePath = req.body.path || '';
+    if (!filePath) return res.status(400).json({ error: 'Caminho do arquivo ZIP não fornecido.' });
+
+    if (fs.existsSync('X:\\')) {
+      filePath = filePath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    filePath = path.normalize(filePath);
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Arquivo ZIP não encontrado.' });
+
+    const targetDir = path.dirname(filePath);
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(filePath);
+    const total = zip.getEntries().filter(e => !e.isDirectory).length;
+
+    zip.extractAllTo(targetDir, true);
+
+    res.json({
+      success: true,
+      message: `${total} arquivo(s) extraídos com sucesso na pasta!`,
+      targetDir,
+      totalExtraidos: total
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
