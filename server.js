@@ -42,7 +42,13 @@ const CACHE_FILE = path.join(__dirname, 'cache_clients.json');
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+app.use(express.static(path.join(__dirname, 'public'), { etag: false, maxAge: 0 }));
 
 // Carrega cache local rápido se existir
 function loadLocalCache() {
@@ -1235,6 +1241,33 @@ app.get('/api/explorer/file', (req, res) => {
     }
   } catch (err) {
     res.status(500).send(`Erro ao abrir arquivo: ${err.message}`);
+  }
+});
+
+// Endpoint: Visualizar DANFE Resumido de Nota Fiscal XML
+app.get('/api/explorer/nfe-preview', (req, res) => {
+  try {
+    let filePath = req.query.path || '';
+    if (!filePath) return res.status(400).json({ error: 'Caminho não fornecido' });
+
+    if (fs.existsSync('X:\\')) {
+      filePath = filePath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    filePath = path.normalize(filePath);
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Arquivo não encontrado' });
+
+    const xmlContent = fs.readFileSync(filePath, 'utf8');
+    const nfeParser = require('./nfe-parser.js');
+    const dados = nfeParser.parseNFeXML(xmlContent);
+
+    res.json({
+      success: true,
+      filename: path.basename(filePath),
+      dados
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
