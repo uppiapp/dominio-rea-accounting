@@ -89,6 +89,10 @@
           <i data-lucide="users" class="w-3.5 h-3.5 text-indigo-600"></i>
           <span>Pessoal (DP)</span>
         </button>
+        <button onclick="switchTab('rea')" id="tabBtn-rea" class="nav-pill-btn flex items-center gap-1.5 whitespace-nowrap">
+          <i data-lucide="cpu" class="w-3.5 h-3.5 text-lime-600"></i>
+          <span>Ontologia REA</span>
+        </button>
 
         <!-- Dropdown Departamental: Legal, Alvarás & Prazos -->
         <div class="relative group">
@@ -2155,6 +2159,193 @@
               <div id="containerFolhaSchema" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div class="text-center py-8 text-slate-400 col-span-3">Carregando dicionário do Domínio...</div>
               </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- ABA: ONTOLOGIA CONTÁBIL REA (ISO/IEC 15944-4) & DOMÍNIO SISTEMAS -->
+        <!-- =================================================================== -->
+        <div id="tabContent-rea" class="hidden space-y-6">
+          
+          <!-- Banner Superior Monet Style -->
+          <div class="monet-card p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-lime-950 text-white border-none shadow-xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-lime-500/20 text-[#84CC16] flex items-center justify-center border border-lime-500/30 shadow-inner">
+                  <i data-lucide="cpu" class="w-6 h-6 text-[#84CC16]"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h2 class="text-xl font-bold tracking-tight">Ontologia Econômica REA & Motor Contábil</h2>
+                    <span class="px-2.5 py-0.5 rounded-full bg-lime-500/30 text-lime-300 text-xs font-bold border border-lime-500/40">ISO/IEC 15944-4</span>
+                    <span class="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 text-xs font-bold">Domínio Layout 19 & 3</span>
+                  </div>
+                  <p class="text-xs text-slate-300 mt-1">Transformação de arquivos de escrituração fiscal em ontologia primitiva (Resource-Event-Agent) e projeção de partidas dobradas em tempo real.</p>
+                </div>
+              </div>
+
+              <!-- Ações Globais -->
+              <div class="flex items-center gap-2.5">
+                <button onclick="executarMotorREA()" id="btnProcessarREAGlobal" class="px-5 py-2.5 bg-[#84CC16] hover:bg-[#a3e635] text-slate-950 rounded-full text-xs font-extrabold shadow-md shadow-lime-500/20 transition flex items-center gap-1.5">
+                  <i data-lucide="play" class="w-4 h-4 fill-slate-950"></i>
+                  <span>Reprocessar Ontologia</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cards de Métricas REA -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="monet-card p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                <i data-lucide="users" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="text-[11px] font-bold text-slate-400 uppercase">Agentes Econômicos</div>
+                <div class="text-xl font-black text-slate-900" id="reaKpiAgentes">4</div>
+                <div class="text-[10px] text-slate-500">Empresas, Fornec., Fisco</div>
+              </div>
+            </div>
+
+            <div class="monet-card p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                <i data-lucide="boxes" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="text-[11px] font-bold text-slate-400 uppercase">Recursos Econômicos</div>
+                <div class="text-xl font-black text-slate-900" id="reaKpiRecursos">8</div>
+                <div class="text-[10px] text-slate-500">Estoque, Caixa, Créditos</div>
+              </div>
+            </div>
+
+            <div class="monet-card p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="text-[11px] font-bold text-slate-400 uppercase">Dualidades Give-Get</div>
+                <div class="text-xl font-black text-slate-900" id="reaKpiDualidades">3</div>
+                <div class="text-[10px] text-slate-500">Equilíbrio Econômico</div>
+              </div>
+            </div>
+
+            <div class="monet-card p-4 bg-white border border-slate-200/80 rounded-2xl shadow-sm flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-lime-50 text-lime-700 flex items-center justify-center font-bold">
+                <i data-lucide="scale" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="text-[11px] font-bold text-slate-400 uppercase">Equação Patrimonial</div>
+                <div class="text-xs font-black text-emerald-600" id="reaKpiEquacao">Ativo = Passivo + PL</div>
+                <div class="text-[10px] text-emerald-600 font-semibold" id="reaKpiEquacaoSub">✅ Equilibrado 100%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Demonstrativos Contábeis Projetados (DRE & Balanço) -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- DRE Projetada -->
+            <div class="monet-card p-6 bg-white border border-slate-200/80 rounded-2xl shadow-sm space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="bar-chart-3" class="w-5 h-5 text-emerald-600"></i>
+                  <h3 class="text-sm font-extrabold text-slate-900">Demonstração do Resultado (DRE Projetada)</h3>
+                </div>
+                <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">Lucro Real / Presumido</span>
+              </div>
+              <div class="space-y-2 text-xs divide-y divide-slate-100 font-mono" id="reaContainerDRE">
+                <div class="flex justify-between py-1 font-semibold text-slate-700">
+                  <span>(+) Receita Bruta de Vendas:</span>
+                  <span id="reaDreReceitaBruta" class="text-slate-900 font-bold">R$ 42.000,00</span>
+                </div>
+                <div class="flex justify-between py-1 text-rose-600">
+                  <span>(-) ICMS sobre Vendas:</span>
+                  <span id="reaDreIcmsVendas">- R$ 7.560,00</span>
+                </div>
+                <div class="flex justify-between py-1 font-bold text-slate-800 bg-slate-50 px-2 rounded">
+                  <span>(=) Receita Líquida Operacional:</span>
+                  <span id="reaDreReceitaLiquida">R$ 34.440,00</span>
+                </div>
+                <div class="flex justify-between py-1 text-slate-600">
+                  <span>(-) Custo das Mercadorias Vendidas (CMV):</span>
+                  <span id="reaDreCMV">- R$ 25.200,00</span>
+                </div>
+                <div class="flex justify-between py-1 font-bold text-slate-800 bg-slate-50 px-2 rounded">
+                  <span>(=) Lucro Bruto Operacional:</span>
+                  <span id="reaDreLucroBruto">R$ 9.240,00</span>
+                </div>
+                <div class="flex justify-between py-1 text-slate-600">
+                  <span>(-) Despesas Operacionais (Uso/Consumo):</span>
+                  <span id="reaDreDespesas">- R$ 3.000,00</span>
+                </div>
+                <div class="flex justify-between py-2 text-sm font-black text-emerald-700 bg-emerald-50 px-2 rounded-xl">
+                  <span>(=) RESULTADO LÍQUIDO DO EXERCÍCIO:</span>
+                  <span id="reaDreLucroLiquido">R$ 6.240,00</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Balanço Patrimonial Projetado -->
+            <div class="monet-card p-6 bg-white border border-slate-200/80 rounded-2xl shadow-sm space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="landmark" class="w-5 h-5 text-sky-600"></i>
+                  <h3 class="text-sm font-extrabold text-slate-900">Balanço Patrimonial Projetado</h3>
+                </div>
+                <span class="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold" id="badgeBalancoStatus">Ativo = Passivo + PL</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
+                <!-- Ativo -->
+                <div class="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                  <div class="font-bold text-slate-900 uppercase text-[11px] pb-1 border-b border-slate-200">ATIVO (Bens + Direitos)</div>
+                  <div class="flex justify-between text-slate-600"><span>Clientes a Receber:</span><span id="reaBalAtivoClientes">R$ 42.000,00</span></div>
+                  <div class="flex justify-between text-slate-600"><span>ICMS a Recuperar:</span><span id="reaBalAtivoIcms">R$ 9.000,00</span></div>
+                  <div class="flex justify-between text-slate-600"><span>Estoque Mercadorias:</span><span id="reaBalAtivoEstoque">R$ 15.800,00</span></div>
+                  <div class="flex justify-between pt-2 border-t border-slate-200 font-extrabold text-slate-900">
+                    <span>TOTAL DO ATIVO:</span>
+                    <span id="reaBalTotalAtivo">R$ 66.800,00</span>
+                  </div>
+                </div>
+
+                <!-- Passivo + PL -->
+                <div class="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                  <div class="font-bold text-slate-900 uppercase text-[11px] pb-1 border-b border-slate-200">PASSIVO & PL</div>
+                  <div class="flex justify-between text-slate-600"><span>Fornecedores a Pagar:</span><span id="reaBalPassFornec">R$ 53.000,00</span></div>
+                  <div class="flex justify-between text-slate-600"><span>ICMS a Recolher:</span><span id="reaBalPassIcms">R$ 7.560,00</span></div>
+                  <div class="flex justify-between text-emerald-700 font-semibold"><span>PL (Lucro Apurado):</span><span id="reaBalPL">R$ 6.240,00</span></div>
+                  <div class="flex justify-between pt-2 border-t border-slate-200 font-extrabold text-slate-900">
+                    <span>PASSIVO + PL:</span>
+                    <span id="reaBalTotalPassivoPL">R$ 66.800,00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Livro Diário & Balancete de Verificação -->
+          <div class="monet-card overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div class="flex items-center gap-2">
+                <i data-lucide="book-open" class="w-4 h-4 text-slate-700"></i>
+                <h3 class="text-sm font-extrabold text-slate-900">Projeção Dinâmica: Livro Diário (Partidas Dobradas)</h3>
+              </div>
+              <span class="text-xs text-slate-500 font-semibold">Derivado das primitivas econômicas</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead class="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <tr>
+                    <th class="py-2.5 px-4">Conta</th>
+                    <th class="py-2.5 px-4">Descrição da Conta</th>
+                    <th class="py-2.5 px-4 text-right">Débito (R$)</th>
+                    <th class="py-2.5 px-4 text-right">Crédito (R$)</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyReaDiario" class="divide-y divide-slate-100 text-slate-700 font-mono">
+                  <tr><td colspan="4" class="py-8 text-center text-slate-400">Carregando lançamentos contábeis REA...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
 

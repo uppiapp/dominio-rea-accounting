@@ -9,4 +9,5 @@ cache_clients.json
 pages.json
 client_overrides.json
 folha_processada.json
+notas_processadas.json
 .env

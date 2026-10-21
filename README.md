@@ -220,6 +220,33 @@ npm run demo
 
 ---
 
+## 🖥️ Aplicativo Desktop & Hub de Automação Local
+
+Como a contabilidade no Brasil requer leitura direta de pastas compartilhadas na rede (`\\192.168.15.2\...`), varredura de gigabytes de XMLs fiscais e certificados digitais locais, o sistema foi desenvolvido como uma **aplicação desktop híbrida**:
+
+### 🚀 Como Executar no seu Computador
+
+1. **Atalho na Área de Trabalho:** Dê dois cliques em `MC Contabil Hub.lnk` na sua Área de Trabalho.
+2. **Ou via Arquivo em Lote:** Execute `Iniciar MC Contabil.bat` na raiz da pasta.
+3. **Ou via Linha de Comando:**
+   ```bash
+   npm install
+   npm start
+   ```
+
+### ⚡ Recursos do Hub Integrado
+
+| Módulo | Descrição Operacional |
+| :--- | :--- |
+| **Ontologia REA (ISO/IEC)** | Motor primitivo Resource-Event-Agent com DRE, Balanço e Livro Diário em tempo real |
+| **Explorador & Inspetor ZIP** | Navegação em pastas de rede e inspeção imediata de lotes de NF-e compactados em `.zip` |
+| **Central Fiscal (NF-e/NFC-e/CT-e)** | Parser completo de XMLs, apuração de Simples Nacional, espelho CFOP e exportação de **Layout 19** |
+| **Central Contábil & Extratos** | Conciliação bancária automática com suporte a OFX e PDF de **10 bancos brasileiros** |
+| **Central de Pessoal & eSocial** | Ingestão de eventos S-1200/1210/2200/5001 com geração de partidas contábeis para folha |
+| **Auditoria VISA & Legal** | Checklist de 12 itens do dossiê da Vigilância Sanitária e controle de certidões e bombeiros |
+
+---
+
 ## 📜 Licença
 
 Distribuído sob a licença **MIT**. Consulte o arquivo [`LICENSE`](LICENSE) para mais detalhes.

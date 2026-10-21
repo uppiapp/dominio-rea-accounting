@@ -226,31 +226,63 @@ app.post('/api/notas/escanear-rede', express.json(), async (req, res) => {
       return res.status(404).json({ success: false, error: 'Pasta da empresa não encontrada na rede local.' });
     }
 
-    const xmlFiles = findFilesRecursively(targetPath, /\.xml$/i, 100);
-    if (xmlFiles.length === 0) {
-      return res.json({ success: true, count: 0, notas: [], message: 'Nenhum arquivo XML encontrado na pasta desta empresa.' });
+    const candidateFiles = findFilesRecursively(targetPath, /\.(xml|zip)$/i, 200);
+    if (candidateFiles.length === 0) {
+      return res.json({ success: true, count: 0, notas: [], message: 'Nenhum arquivo XML ou ZIP fiscal encontrado na pasta desta empresa.' });
     }
 
     const clientCnpj = clientObj ? String(clientObj.cnpj || '').replace(/\D/g, '') : '';
     const resultados = [];
     const erros = [];
+    const AdmZip = require('adm-zip');
 
-    for (const filePath of xmlFiles) {
-      try {
-        const nota = nfeParser.parseNFeFile(filePath);
-        if (nota) {
-          if (clientCnpj) {
-            nota.direcao = fiscalEngine.classificarOperacao(nota, clientCnpj);
-            nota.cnpjEmpresa = clientCnpj;
+    for (const filePath of candidateFiles) {
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === '.xml') {
+        try {
+          const nota = nfeParser.parseNFeFile(filePath);
+          if (nota) {
+            if (clientCnpj) {
+              nota.direcao = fiscalEngine.classificarOperacao(nota, clientCnpj);
+              nota.cnpjEmpresa = clientCnpj;
+            }
+            nota.nomeArquivo = path.basename(filePath);
+            nota.lancamentoContabil = fiscalEngine.gerarLancamentoContabil(nota, {});
+            db.salvarNota(nota);
+            fiscalEngine.salvarNotaProcessada(nota);
+            resultados.push(nota);
           }
-          nota.nomeArquivo = path.basename(filePath);
-          nota.lancamentoContabil = fiscalEngine.gerarLancamentoContabil(nota, {});
-          db.salvarNota(nota);
-          fiscalEngine.salvarNotaProcessada(nota);
-          resultados.push(nota);
+        } catch (err) {
+          erros.push({ arquivo: path.basename(filePath), erro: err.message });
         }
-      } catch (err) {
-        erros.push({ arquivo: path.basename(filePath), erro: err.message });
+      } else if (ext === '.zip') {
+        try {
+          const zip = new AdmZip(filePath);
+          const entries = zip.getEntries();
+          for (const entry of entries) {
+            if (!entry.isDirectory && entry.entryName.toLowerCase().endsWith('.xml')) {
+              try {
+                const xmlContent = zip.readAsText(entry);
+                const nota = nfeParser.parseNFeXML(xmlContent);
+                if (nota) {
+                  if (clientCnpj) {
+                    nota.direcao = fiscalEngine.classificarOperacao(nota, clientCnpj);
+                    nota.cnpjEmpresa = clientCnpj;
+                  }
+                  nota.nomeArquivo = `${path.basename(filePath)} > ${path.basename(entry.entryName)}`;
+                  nota.lancamentoContabil = fiscalEngine.gerarLancamentoContabil(nota, {});
+                  db.salvarNota(nota);
+                  fiscalEngine.salvarNotaProcessada(nota);
+                  resultados.push(nota);
+                }
+              } catch (errEntry) {
+                erros.push({ arquivo: `${path.basename(filePath)}::${entry.entryName}`, erro: errEntry.message });
+              }
+            }
+          }
+        } catch (errZip) {
+          erros.push({ arquivo: path.basename(filePath), erro: `Falha ao abrir ZIP: ${errZip.message}` });
+        }
       }
     }
 
@@ -1269,6 +1301,12 @@ app.get('/api/explorer/nfe-preview', (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// Endpoint: Motor Contábil REA (Ontologia Econômica ISO/IEC 15944-4 & Domínio Sistemas)
+const reaProcessHandler = require('./api/process.js');
+app.all('/api/rea/process', (req, res) => {
+  reaProcessHandler(req, res);
 });
 
 // Endpoint: Listar arquivos contidos dentro de um arquivo ZIP

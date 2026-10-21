@@ -857,7 +857,21 @@ class AccountingScanner {
 
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-        if (entry.name.startsWith('1-EMPRESA NOVA') || entry.name.startsWith('5- CONSULTAS')) continue;
+        const normalizedName = entry.name.toUpperCase().trim();
+        if (
+          normalizedName.startsWith('1-EMPRESA NOVA') ||
+          normalizedName.startsWith('5- CONSULTAS') ||
+          normalizedName === 'MEI' ||
+          normalizedName === 'CERTIFICADO DIVERSOS' ||
+          normalizedName === 'CERTIFICADOS' ||
+          normalizedName === 'DATABASE' ||
+          normalizedName === 'DATABASE - COPIA' ||
+          normalizedName === 'FATURA EQUATORIAL' ||
+          normalizedName.startsWith('LICENÇA MATERNIDADE') ||
+          normalizedName.startsWith('ARQUIVOS_ANTIGOS') ||
+          normalizedName.startsWith('CÓPIA DE') ||
+          normalizedName.startsWith('COPIA DE')
+        ) continue;
 
         const clientPath = path.join(regPath, entry.name);
         let stat;
