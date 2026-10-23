@@ -864,7 +864,7 @@ function triggerOpenFolder(encodedId, encodedPath, encodedName) {
   const id = decodeURIComponent(encodedId || '');
   const path = decodeURIComponent(encodedPath || '');
   const name = decodeURIComponent(encodedName || '');
-  abrirExploradorWeb(path || id, name);
+  openFolderInExplorer(id, path, name);
 }
 
 // Abre Pasta no Windows Explorer
@@ -1105,7 +1105,7 @@ async function openClientDetails(clientId) {
       }).catch(() => {});
     }
 
-    document.getElementById('modalBtnOpenExplorer').onclick = () => abrirExploradorWeb(c.path || c.id, c.name);
+    document.getElementById('modalBtnOpenExplorer').onclick = () => openFolderInExplorer(c.id, c.path, c.name);
     document.getElementById('modalBtnStandardize').onclick = () => {
       standardizeClient(c.id);
       closeDetailsModal();
@@ -3016,7 +3016,7 @@ function renderModalFechamento1Clique(data) {
   if (btnPasta) {
     btnPasta.onclick = () => {
       const c = allClients.find(x => x.id === cli.id);
-      triggerOpenFolder(encodeURIComponent(cli.id || ''), encodeURIComponent(c?.path || ''), encodeURIComponent(cli.nome || ''));
+      openFolderInExplorer(cli.id, c?.path || '', cli.nome || cli.name || '');
     };
   }
 

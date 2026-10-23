@@ -1729,9 +1729,15 @@ app.post('/api/clients/open', (req, res) => {
   const { path: folderPath, id, name } = req.body;
   let targetPath = folderPath;
 
-  if (!targetPath && (id || name)) {
-    const client = scanner.cache.clients.find(c => c.id === id || c.name === name || c.name === id);
-    if (client) targetPath = client.path;
+  // Se o ID ou Nome do cliente foi passado, prioriza o caminho oficial do scanner
+  if (id || name) {
+    const client = (scanner.cache.clients || []).find(c => String(c.id) === String(id) || c.name === name || c.name === id);
+    if (client && client.path && fs.existsSync(client.path)) {
+      targetPath = client.path;
+    }
+  }
+  if (!targetPath && folderPath) {
+    targetPath = folderPath;
   }
 
   if (!targetPath) {
@@ -1747,11 +1753,15 @@ app.post('/api/clients/open', (req, res) => {
 
   let finalPath = targetPath;
   if (!fs.existsSync(finalPath)) {
-    const parentDir = path.dirname(finalPath);
-    if (fs.existsSync(parentDir)) {
-      finalPath = parentDir;
-    } else {
-      return res.status(404).json({ error: `Pasta não encontrada no disco: ${finalPath}` });
+    try {
+      fs.mkdirSync(finalPath, { recursive: true });
+    } catch(e) {
+      const parentDir = path.dirname(finalPath);
+      if (fs.existsSync(parentDir)) {
+        finalPath = parentDir;
+      } else {
+        finalPath = fs.existsSync('X:\\') ? 'X:\\' : scanner.getBasePath();
+      }
     }
   }
 
