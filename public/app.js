@@ -4878,24 +4878,41 @@ function renderItensExplorador(pastas, arquivos) {
             ${dataModFormatada}
           </td>
           <td class="py-2.5 px-4 text-center whitespace-nowrap">
-            <div class="flex items-center justify-center gap-1.5">
+            <div class="flex items-center justify-center gap-1.5 flex-wrap">
+              <!-- Botão Editar no Editor Embutido (para arquivos de texto/código) -->
+              <button onclick="abrirEditorArquivoEmbutido('${encodeURIComponent(f.path)}')" class="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 text-xs font-bold transition flex items-center gap-1 border border-indigo-200" title="Editar arquivo no próprio aplicativo">
+                <i data-lucide="edit-3" class="w-3 h-3"></i>
+                <span>Editar</span>
+              </button>
+
+              <!-- Botão Abrir no Windows (Excel, Bloco de Notas, etc.) -->
+              <button onclick="abrirArquivoNoWindows('${encodeURIComponent(f.path)}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-700 transition" title="Abrir com programa padrão do Windows (Excel, Notepad, etc.)">
+                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+              </button>
+
               ${f.isZip ? `
-                <button onclick="abrirVisualizadorZip('${encodeURIComponent(f.path)}', '${encodeURIComponent(f.name)}')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 hover:text-white text-amber-800 text-xs font-bold transition flex items-center gap-1 border border-amber-300" title="Ver Arquivos dentro deste ZIP">
-                  <i data-lucide="eye" class="w-3.5 h-3.5"></i>
-                  <span>Ver Notas</span>
+                <button onclick="abrirVisualizadorZip('${encodeURIComponent(f.path)}', '${encodeURIComponent(f.name)}')" class="px-2 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 hover:text-white text-amber-800 text-xs font-bold transition flex items-center gap-1 border border-amber-300" title="Ver Arquivos dentro deste ZIP">
+                  <i data-lucide="eye" class="w-3 h-3"></i>
+                  <span>Notas</span>
                 </button>
-                <button onclick="descompactarZipNaPasta('${encodeURIComponent(f.path)}')" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-600 hover:text-white text-emerald-800 text-xs font-bold transition flex items-center gap-1 border border-emerald-300" title="Descompactar Todos os XMLs nesta Pasta">
-                  <i data-lucide="folder-output" class="w-3.5 h-3.5"></i>
+                <button onclick="descompactarZipNaPasta('${encodeURIComponent(f.path)}')" class="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-600 hover:text-white text-emerald-800 text-xs font-bold transition flex items-center gap-1 border border-emerald-300" title="Descompactar Todos os XMLs nesta Pasta">
+                  <i data-lucide="folder-output" class="w-3 h-3"></i>
                   <span>Extrair</span>
                 </button>
               ` : ''}
+
               ${f.isPdf || f.isXml ? `
-                <button onclick="visualizarArquivoWeb('${encodeURIComponent(f.path)}', '${encodeURIComponent(f.name)}', '${f.ext}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-500 hover:text-slate-950 text-slate-700 transition" title="Visualizar Direto na Web">
+                <button onclick="visualizarArquivoWeb('${encodeURIComponent(f.path)}', '${encodeURIComponent(f.name)}', '${f.ext}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-500 hover:text-slate-950 text-slate-700 transition" title="Visualizar">
                   <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                 </button>
               ` : ''}
-              <button onclick="baixarArquivoWeb('${encodeURIComponent(f.path)}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-700 transition" title="Baixar Arquivo">
+
+              <button onclick="baixarArquivoWeb('${encodeURIComponent(f.path)}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-700 transition" title="Baixar">
                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              </button>
+
+              <button onclick="confirmarExcluirItemExplorador('${encodeURIComponent(f.path)}', '${encodeURIComponent(f.name)}')" class="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-600 hover:text-white text-rose-600 transition" title="Excluir arquivo do computador">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
               </button>
             </div>
           </td>
@@ -5272,6 +5289,205 @@ async function abrirArquivoNoWindows(encPath) {
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao abrir arquivo');
     showToast('Arquivo aberto com sucesso!', 'success');
+  } catch (err) {
+    showToast(`Erro: ${err.message}`, 'error');
+  }
+}
+
+// =========================================================================
+// MÓDULO: EDITOR DE ARQUIVOS DIRETO NO COMPUTADOR
+// =========================================================================
+let arquivoAtualEditorCaminho = '';
+
+// Abrir Editor Embutido para editar arquivo no próprio PC
+async function abrirEditorArquivoEmbutido(encPath) {
+  const filePath = decodeURIComponent(encPath);
+  arquivoAtualEditorCaminho = filePath;
+
+  const modal = document.getElementById('modalEditorArquivo');
+  const nomeEl = document.getElementById('editorArquivoNome');
+  const caminhoEl = document.getElementById('editorArquivoCaminhoCompleto');
+  const textarea = document.getElementById('editorConteudoTexto');
+  const tagTamanho = document.getElementById('editorArquivoTagTamanho');
+
+  if (nomeEl) nomeEl.textContent = filePath.split(/[\\/]/).pop();
+  if (caminhoEl) caminhoEl.textContent = filePath;
+  if (textarea) textarea.value = 'Carregando conteúdo do arquivo do computador...';
+  if (modal) modal.classList.remove('hidden');
+
+  try {
+    const res = await fetch(`/api/explorer/read-content?path=${encodeURIComponent(filePath)}`);
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao ler arquivo');
+
+    if (textarea) textarea.value = data.content || '';
+    if (tagTamanho) tagTamanho.textContent = (data.size < 1024) ? `${data.size} B` : `${(data.size / 1024).toFixed(1)} KB`;
+    atualizarStatusEditorTexto();
+  } catch (err) {
+    showToast(`Erro ao abrir arquivo para edição: ${err.message}`, 'error');
+    if (textarea) textarea.value = `Erro ao abrir arquivo: ${err.message}`;
+  }
+}
+
+// Fechar Modal do Editor
+function fecharEditorArquivoModal() {
+  const modal = document.getElementById('modalEditorArquivo');
+  if (modal) modal.classList.add('hidden');
+}
+
+// Atualizar contador de linhas e caracteres no editor
+function atualizarStatusEditorTexto() {
+  const textarea = document.getElementById('editorConteudoTexto');
+  if (!textarea) return;
+  const texto = textarea.value || '';
+  const linhas = texto.split('\n').length;
+  const chars = texto.length;
+
+  const elLinhas = document.getElementById('editorStatusLinhas');
+  const elChars = document.getElementById('editorStatusChars');
+  if (elLinhas) elLinhas.textContent = linhas;
+  if (elChars) elChars.textContent = chars.toLocaleString('pt-BR');
+}
+
+// Atalho Ctrl+S para salvar no editor
+function handleEditorKeyDown(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    salvarArquivoNoPC();
+  }
+}
+
+// Salvar o arquivo editado diretamente no disco do PC
+async function salvarArquivoNoPC() {
+  if (!arquivoAtualEditorCaminho) return;
+  const textarea = document.getElementById('editorConteudoTexto');
+  const content = textarea ? textarea.value : '';
+  const btn = document.getElementById('btnSalvarEditorArquivo');
+
+  try {
+    if (btn) btn.disabled = true;
+    showToast('Salvando alterações no seu computador...', 'info');
+
+    const res = await fetch('/api/explorer/save-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: arquivoAtualEditorCaminho,
+        content
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Falha ao salvar');
+
+    showToast('✅ Arquivo salvo no computador com sucesso!', 'success');
+    const msgEl = document.getElementById('editorStatusMsg');
+    if (msgEl) {
+      msgEl.textContent = 'Salvo em ' + new Date().toLocaleTimeString('pt-BR');
+      setTimeout(() => { if (msgEl) msgEl.textContent = 'Edição direta no disco do PC'; }, 3000);
+    }
+    // Atualiza a listagem de arquivos da pasta se o explorador estiver aberto
+    if (caminhoAtualExplorador) carregarPastaExplorador(caminhoAtualExplorador);
+  } catch (err) {
+    showToast(`Erro ao salvar no computador: ${err.message}`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Abrir o arquivo atual do editor no aplicativo padrão do Windows
+function abrirArquivoAtualComWindowsApp() {
+  if (arquivoAtualEditorCaminho) {
+    abrirArquivoNoWindows(encodeURIComponent(arquivoAtualEditorCaminho));
+  }
+}
+
+// Ir para caminho digitado manualmente
+function irParaCaminhoManualExplorador() {
+  const input = document.getElementById('inputCaminhoManualExplorador');
+  const path = input ? input.value.trim() : '';
+  if (path) {
+    carregarPastaExplorador(path);
+  }
+}
+
+// Criar novo arquivo na pasta atual
+async function promptNovoArquivoExplorador() {
+  if (!caminhoAtualExplorador) {
+    showToast('Abra uma pasta primeiro.', 'warning');
+    return;
+  }
+  const nome = prompt('Digite o nome do novo arquivo (ex: notas.txt, ajuste.csv, config.ini):');
+  if (!nome || !nome.trim()) return;
+
+  try {
+    showToast('Criando arquivo no computador...', 'info');
+    const res = await fetch('/api/explorer/create-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dirPath: caminhoAtualExplorador,
+        fileName: nome.trim(),
+        content: ''
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao criar arquivo');
+
+    showToast('✅ Arquivo criado com sucesso!', 'success');
+    await carregarPastaExplorador(caminhoAtualExplorador);
+    abrirEditorArquivoEmbutido(encodeURIComponent(data.path));
+  } catch (err) {
+    showToast(`Erro: ${err.message}`, 'error');
+  }
+}
+
+// Criar nova pasta na pasta atual
+async function promptNovaPastaExplorador() {
+  if (!caminhoAtualExplorador) {
+    showToast('Abra uma pasta primeiro.', 'warning');
+    return;
+  }
+  const nome = prompt('Digite o nome da nova pasta:');
+  if (!nome || !nome.trim()) return;
+
+  try {
+    showToast('Criando pasta no computador...', 'info');
+    const res = await fetch('/api/explorer/create-folder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dirPath: caminhoAtualExplorador,
+        folderName: nome.trim()
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao criar pasta');
+
+    showToast('✅ Pasta criada com sucesso!', 'success');
+    await carregarPastaExplorador(caminhoAtualExplorador);
+  } catch (err) {
+    showToast(`Erro: ${err.message}`, 'error');
+  }
+}
+
+// Confirmar exclusão de arquivo ou pasta
+async function confirmarExcluirItemExplorador(encPath, encName) {
+  const filePath = decodeURIComponent(encPath);
+  const fileName = decodeURIComponent(encName);
+  if (!confirm(`Tem certeza que deseja excluir "${fileName}" do computador?`)) return;
+
+  try {
+    showToast('Excluindo item do computador...', 'info');
+    const res = await fetch('/api/explorer/delete-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao excluir');
+
+    showToast('Item excluído com sucesso!', 'success');
+    if (caminhoAtualExplorador) carregarPastaExplorador(caminhoAtualExplorador);
   } catch (err) {
     showToast(`Erro: ${err.message}`, 'error');
   }

@@ -3075,15 +3075,57 @@
         </div>
       </div>
 
-      <!-- Barra de Breadcrumbs & Navegação Superior -->
-      <div class="px-5 py-2.5 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between gap-3 text-xs">
-        <div class="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none" id="explorerBreadcrumbs">
-          <!-- Gerado dinamicamente -->
+      <!-- Barra de Atalhos de Unidades & Caminho Direto no PC -->
+      <div class="px-5 py-2 bg-slate-100/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Locais do PC:</span>
+          <button onclick="carregarPastaExplorador('C:\\')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-[11px] flex items-center gap-1 transition shadow-sm">
+            <i data-lucide="hard-drive" class="w-3 h-3 text-blue-600"></i>
+            <span>Drive C:</span>
+          </button>
+          <button onclick="carregarPastaExplorador('X:\\')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-[11px] flex items-center gap-1 transition shadow-sm">
+            <i data-lucide="network" class="w-3 h-3 text-emerald-600"></i>
+            <span>Drive X: (Rede)</span>
+          </button>
+          <button onclick="carregarPastaExplorador('C:\\Users\\mcass\\Desktop')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-[11px] flex items-center gap-1 transition shadow-sm">
+            <i data-lucide="monitor" class="w-3 h-3 text-amber-600"></i>
+            <span>Área de Trabalho</span>
+          </button>
+          <button onclick="carregarPastaExplorador('C:\\Users\\mcass\\Downloads')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-[11px] flex items-center gap-1 transition shadow-sm">
+            <i data-lucide="download" class="w-3 h-3 text-purple-600"></i>
+            <span>Downloads</span>
+          </button>
         </div>
-        <button onclick="navegarPastaPaiExplorador()" id="btnSubirNivelExplorador" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-[11px] font-bold text-slate-700 transition flex items-center gap-1 shrink-0 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
-          <i data-lucide="arrow-up" class="w-3 h-3"></i>
-          <span>Subir Pasta</span>
-        </button>
+
+        <div class="flex items-center gap-2">
+          <button onclick="promptNovoArquivoExplorador()" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-sm" title="Criar novo arquivo de texto na pasta atual">
+            <i data-lucide="file-plus" class="w-3 h-3"></i>
+            <span>Novo Arquivo</span>
+          </button>
+          <button onclick="promptNovaPastaExplorador()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold text-[11px] flex items-center gap-1 transition shadow-sm" title="Criar nova pasta neste diretório">
+            <i data-lucide="folder-plus" class="w-3 h-3"></i>
+            <span>Nova Pasta</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Caminho e Breadcrumbs -->
+      <div class="px-5 py-2 bg-slate-50 border-b border-slate-200/60 flex items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <button onclick="navegarPastaPaiExplorador()" id="btnSubirNivelExplorador" class="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-[11px] font-bold text-slate-700 transition flex items-center gap-1 shrink-0 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+            <i data-lucide="arrow-up" class="w-3 h-3"></i>
+            <span>Subir</span>
+          </button>
+          <div class="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none flex-1 min-w-0" id="explorerBreadcrumbs">
+            <!-- Gerado dinamicamente -->
+          </div>
+        </div>
+
+        <!-- Ir para caminho digitado -->
+        <div class="flex items-center gap-1 shrink-0">
+          <input type="text" id="inputCaminhoManualExplorador" placeholder="Ir para caminho no PC..." class="w-56 px-2.5 py-1 text-[11px] font-mono border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-lime-500">
+          <button onclick="irParaCaminhoManualExplorador()" class="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-bold text-[11px] transition">Ir</button>
+        </div>
       </div>
 
       <!-- Conteúdo do Explorador (Subpastas + Arquivos) -->
@@ -3743,10 +3785,91 @@
     </div>
   </div>
 
+  
+  <!-- ========================================================================= -->
+  <!-- MODAL: EDITOR DE ARQUIVOS DIRETO NO COMPUTADOR (TEXTO, XML, CSV, ETC) -->
+  <!-- ========================================================================= -->
+  <div id="modalEditorArquivo" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 lg:p-6 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div class="bg-white rounded-[28px] max-w-5xl w-full h-[92vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+      
+      <!-- Cabeçalho do Editor -->
+      <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold shrink-0">
+            <i data-lucide="file-edit" class="w-5 h-5"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-bold text-slate-900 truncate" id="editorArquivoNome">Arquivo</h3>
+              <span id="editorArquivoTagTamanho" class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-mono font-bold">0 KB</span>
+            </div>
+            <p class="text-xs text-slate-400 truncate font-mono" id="editorArquivoCaminhoCompleto">Caminho no PC</p>
+          </div>
+        </div>
+
+        <!-- Ações no Topo do Editor -->
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="abrirArquivoAtualComWindowsApp()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5" title="Abrir com o aplicativo padrão do Windows (Excel, Bloco de Notas, etc.)">
+            <i data-lucide="external-link" class="w-3.5 h-3.5 text-slate-500"></i>
+            <span class="hidden sm:inline">Abrir no Windows</span>
+          </button>
+          <button onclick="salvarArquivoNoPC()" id="btnSalvarEditorArquivo" class="btn-monet-lime px-4 py-2 text-xs font-black rounded-xl shadow-md shadow-lime-500/20 flex items-center gap-1.5 transition">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            <span>Salvar no PC</span>
+          </button>
+          <button onclick="fecharEditorArquivoModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Ferramentas / Status do Arquivo -->
+      <div class="px-5 py-2 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between text-[11px] text-slate-600 font-mono">
+        <div class="flex items-center gap-4">
+          <span>Linhas: <strong id="editorStatusLinhas" class="text-slate-900 font-bold">1</strong></span>
+          <span>Caracteres: <strong id="editorStatusChars" class="text-slate-900 font-bold">0</strong></span>
+          <span class="text-emerald-700 font-semibold" id="editorStatusMsg">Edição direta no disco do PC</span>
+        </div>
+        <div class="text-[10px] text-slate-400">
+          Pressione Ctrl+S para salvar rapidamente
+        </div>
+      </div>
+
+      <!-- Área de Edição (Textarea com Estilo Code / Mono) -->
+      <div class="flex-1 p-4 bg-[#1E293B] relative overflow-hidden flex flex-col">
+        <textarea 
+          id="editorConteudoTexto" 
+          spellcheck="false" 
+          oninput="atualizarStatusEditorTexto()"
+          onkeydown="handleEditorKeyDown(event)"
+          class="w-full flex-1 bg-transparent text-emerald-400 font-mono text-xs leading-relaxed p-2 resize-none focus:outline-none border-none selection:bg-lime-500 selection:text-slate-950"
+          placeholder="Conteúdo do arquivo..."
+        ></textarea>
+      </div>
+
+      <!-- Rodapé do Editor -->
+      <div class="p-3 bg-white border-t border-slate-200 flex items-center justify-between text-xs px-5">
+        <div class="text-[11px] text-slate-500">
+          💾 Todas as alterações são salvas diretamente no arquivo original no seu computador.
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="fecharEditorArquivoModal()" class="px-3.5 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold transition">
+            Fechar
+          </button>
+          <button onclick="salvarArquivoNoPC()" class="btn-monet-lime px-4 py-1.5 font-bold rounded-xl shadow-sm transition flex items-center gap-1.5">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i>
+            <span>Salvar Alterações</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Toast de Notificações -->
   <div id="toastContainer" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
 
   <!-- Scripts -->
-  <script src="app.js?v=2.5"></script>
+  <script src="app.js?v=2.6"></script>
 </body>
 </html>

@@ -2119,6 +2119,97 @@ app.post('/api/explorer/save-file', express.json(), (req, res) => {
   }
 });
 
+// Endpoint: Ler conteúdo de arquivo de texto para o editor do aplicativo
+app.get('/api/explorer/read-content', (req, res) => {
+  try {
+    let filePath = req.query.path || '';
+    if (!filePath) return res.status(400).json({ error: 'Caminho não fornecido.' });
+    if (fs.existsSync('X:\\')) {
+      filePath = filePath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    filePath = path.normalize(filePath);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Arquivo não encontrado.' });
+
+    const stat = fs.statSync(filePath);
+    if (stat.size > 15 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Arquivo muito grande para edição (limite: 15MB).' });
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    res.json({
+      success: true,
+      path: filePath,
+      name: path.basename(filePath),
+      ext: path.extname(filePath).toLowerCase(),
+      size: stat.size,
+      lastModified: stat.mtime,
+      content
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint: Criar novo arquivo no computador
+app.post('/api/explorer/create-file', express.json(), (req, res) => {
+  try {
+    let { dirPath, fileName, content } = req.body;
+    if (!dirPath || !fileName) return res.status(400).json({ error: 'Diretório e nome do arquivo são obrigatórios.' });
+    if (fs.existsSync('X:\\')) {
+      dirPath = dirPath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    const fullPath = path.normalize(path.join(dirPath, fileName));
+    if (fs.existsSync(fullPath)) return res.status(400).json({ error: 'Já existe um arquivo com esse nome nesta pasta.' });
+
+    fs.writeFileSync(fullPath, content || '', 'utf8');
+    res.json({ success: true, message: 'Arquivo criado com sucesso no computador!', path: fullPath, name: fileName });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint: Criar nova pasta no computador
+app.post('/api/explorer/create-folder', express.json(), (req, res) => {
+  try {
+    let { dirPath, folderName } = req.body;
+    if (!dirPath || !folderName) return res.status(400).json({ error: 'Diretório e nome da pasta são obrigatórios.' });
+    if (fs.existsSync('X:\\')) {
+      dirPath = dirPath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    const fullPath = path.normalize(path.join(dirPath, folderName));
+    if (fs.existsSync(fullPath)) return res.status(400).json({ error: 'Já existe uma pasta com esse nome.' });
+
+    fs.mkdirSync(fullPath, { recursive: true });
+    res.json({ success: true, message: 'Pasta criada com sucesso no computador!', path: fullPath, name: folderName });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint: Excluir arquivo ou pasta no computador
+app.post('/api/explorer/delete-item', express.json(), (req, res) => {
+  try {
+    let targetPath = req.body.path || '';
+    if (!targetPath) return res.status(400).json({ error: 'Caminho não fornecido.' });
+    if (fs.existsSync('X:\\')) {
+      targetPath = targetPath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    targetPath = path.normalize(targetPath);
+    if (!fs.existsSync(targetPath)) return res.status(404).json({ error: 'Item não encontrado no computador.' });
+
+    const stat = fs.statSync(targetPath);
+    if (stat.isDirectory()) {
+      fs.rmSync(targetPath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(targetPath);
+    }
+    res.json({ success: true, message: 'Item excluído com sucesso!' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 app.post('/api/clients/create', (req, res) => {
   try {
     const { regime, clientName, cnpj } = req.body;
