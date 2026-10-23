@@ -1,4 +1,4 @@
-﻿// MC Assessoria Contábil Hub - Frontend Application
+// MC Assessoria Contábil Hub - Frontend Application
 let allClients = [];
 let filteredClients = [];
 let allBombeiros = [];
@@ -2700,20 +2700,44 @@ function updateCockpitBadges(mes, ano) {
   if (badgeVencFiscal) badgeVencFiscal.textContent = vencStr;
 }
 
+function handleCockpitClientChange(clientId, source) {
+  const isCockpit = source === 'cockpit';
+  const otherSel = document.getElementById(isCockpit ? 'cockpitClientSelectFiscal' : 'cockpitClientSelect');
+  if (otherSel && otherSel.value !== clientId) {
+    otherSel.value = clientId;
+  }
+  const selNotas = document.getElementById('selectEmpresaNotas');
+  if (selNotas && clientId) {
+    selNotas.value = clientId;
+    if (typeof handleSelectEmpresaNotas === 'function') {
+      handleSelectEmpresaNotas(clientId);
+    }
+  }
+}
+
 function executarFechamentoCockpit(selectId, monthId, yearId) {
   const selClient = document.getElementById(selectId);
   const selMonth = document.getElementById(monthId || 'cockpitMonthSelect');
   const selYear = document.getElementById(yearId || 'cockpitYearSelect');
 
-  const clientId = selClient ? selClient.value : '';
-  const mes = selMonth ? selMonth.value : '09';
-  const ano = selYear ? selYear.value : '2026';
+  let clientId = selClient ? selClient.value : '';
+  if (!clientId) {
+    const otherId = selectId === 'cockpitClientSelect' ? 'cockpitClientSelectFiscal' : 'cockpitClientSelect';
+    const otherSel = document.getElementById(otherId);
+    if (otherSel && otherSel.value) {
+      clientId = otherSel.value;
+      if (selClient) selClient.value = clientId;
+    }
+  }
 
   if (!clientId) {
+    if (selClient) selClient.focus();
     showToast('Por favor, selecione uma empresa para executar o Fechamento Fiscal.', 'warning');
     return;
   }
 
+  const mes = selMonth ? selMonth.value : '09';
+  const ano = selYear ? selYear.value : '2026';
   const competencia = mes === 'TODAS' ? 'TODAS' : `${ano}-${mes}`;
   executarFechamento1Clique(clientId, competencia, ano, mes);
 }
@@ -2723,15 +2747,24 @@ function baixarPacoteCockpit(selectId, monthId, yearId) {
   const selMonth = document.getElementById(monthId || 'cockpitMonthSelect');
   const selYear = document.getElementById(yearId || 'cockpitYearSelect');
 
-  const clientId = selClient ? selClient.value : '';
-  const mes = selMonth ? selMonth.value : '09';
-  const ano = selYear ? selYear.value : '2026';
+  let clientId = selClient ? selClient.value : '';
+  if (!clientId) {
+    const otherId = selectId === 'cockpitClientSelect' ? 'cockpitClientSelectFiscal' : 'cockpitClientSelect';
+    const otherSel = document.getElementById(otherId);
+    if (otherSel && otherSel.value) {
+      clientId = otherSel.value;
+      if (selClient) selClient.value = clientId;
+    }
+  }
 
   if (!clientId) {
+    if (selClient) selClient.focus();
     showToast('Por favor, selecione uma empresa para baixar o pacote Domínio.', 'warning');
     return;
   }
 
+  const mes = selMonth ? selMonth.value : '09';
+  const ano = selYear ? selYear.value : '2026';
   const competencia = mes === 'TODAS' ? 'TODAS' : `${ano}-${mes}`;
   baixarPacoteDominio1Clique(clientId, competencia);
 }
@@ -2751,7 +2784,8 @@ async function executarFechamento1Clique(clientId, competencia, ano, mes, anexoS
     return;
   }
 
-  const client = allClients.find(c => c.id === clientId);
+  const cleanReqId = String(clientId || '').replace(/\D/g, '');
+  const client = allClients.find(c => String(c.id) === String(clientId) || (cleanReqId && String(c.cnpj || '').replace(/\D/g, '') === cleanReqId));
   const nomeCliente = client ? client.name : 'Empresa';
 
   if (!ano || !mes) {
@@ -2802,7 +2836,8 @@ function recalcularFechamentoModal() {
   const ano = document.getElementById('fechamentoModalYear')?.value || '2026';
   const anexo = parseInt(document.getElementById('fechamentoModalAnexo')?.value || 1, 10);
   const rbt12Raw = document.getElementById('fechamentoModalRbt12')?.value || '360000';
-  const rbt12 = parseFloat(rbt12Raw.replace(/[^\d.,]/g, '').replace(',', '.')) || 360000;
+  const cleanRbt12 = String(rbt12Raw).replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
+  const rbt12 = parseFloat(cleanRbt12) || 360000;
   const competencia = mes === 'TODAS' ? 'TODAS' : `${ano}-${mes}`;
 
   executarFechamento1Clique(clientId, competencia, ano, mes, anexo, rbt12, false);
@@ -2995,6 +3030,10 @@ function renderModalFechamento1Clique(data) {
       if (sel) {
         sel.value = cli.id;
         handleSelectEmpresaNotas(cli.id);
+      }
+      const selCockpitFisc = document.getElementById('cockpitClientSelectFiscal');
+      if (selCockpitFisc) {
+        selCockpitFisc.value = cli.id;
       }
     };
   }
@@ -5185,3 +5224,55 @@ function renderDadosREA(d) {
 
 
 
+
+// Gravar pacote de importação do Domínio diretamente na pasta do cliente no PC/Rede
+async function gravarPacoteDiretoNaPasta() {
+  if (!window.currentFechamentoData || !window.currentFechamentoData.cliente) {
+    showToast('Nenhum fechamento selecionado.', 'warning');
+    return;
+  }
+  const cli = window.currentFechamentoData.cliente;
+  const mes = document.getElementById('fechamentoModalMonth')?.value || '09';
+  const ano = document.getElementById('fechamentoModalYear')?.value || '2026';
+  const competencia = mes === 'TODAS' ? 'TODAS' : `${ano}-${mes}`;
+
+  showToast('Gravando arquivos do Domínio diretamente na pasta do cliente no PC...', 'info');
+
+  try {
+    const res = await fetch('/api/automacao/salvar-pacote-pasta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientId: cli.id,
+        competencia,
+        ano,
+        mes
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Erro ao gravar arquivos na pasta');
+    }
+    showToast(`✅ Arquivos gravados na pasta! Abrindo no Windows Explorer...`, 'success');
+  } catch (err) {
+    showToast(`Erro ao gravar na pasta: ${err.message}`, 'error');
+  }
+}
+
+// Abrir arquivo diretamente no Windows com aplicativo padrão (Excel, Bloco de Notas, etc.)
+async function abrirArquivoNoWindows(encPath) {
+  const filePath = decodeURIComponent(encPath);
+  try {
+    showToast('Abrindo arquivo no Windows...', 'info');
+    const res = await fetch('/api/explorer/open-external', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao abrir arquivo');
+    showToast('Arquivo aberto com sucesso!', 'success');
+  } catch (err) {
+    showToast(`Erro: ${err.message}`, 'error');
+  }
+}

@@ -400,37 +400,37 @@ function calcularPeriodoCompetencia(competencia, ano, mes, dataInicio, dataFim) 
 
   const hoje = new Date();
   if (!finalAno) finalAno = String(hoje.getFullYear());
-  if (!finalMes) finalMes = String(hoje.getMonth() + 1).padStart(2, '0');
 
+  const isTodas = competencia === 'TODAS' || finalMes === 'TODAS';
   const anoNum = parseInt(finalAno, 10) || hoje.getFullYear();
-  const mesNum = parseInt(finalMes, 10) || (hoje.getMonth() + 1);
+  let mesNum = isTodas ? 9 : (parseInt(finalMes, 10) || (hoje.getMonth() + 1));
+  if (mesNum < 1 || mesNum > 12) mesNum = 9;
 
   const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
   const padMes = String(mesNum).padStart(2, '0');
 
-  const dtInicio = dataInicio || `${anoNum}-${padMes}-01`;
-  const dtFim = dataFim || `${anoNum}-${padMes}-${String(ultimoDia).padStart(2, '0')}`;
+  const dtInicio = dataInicio || (isTodas ? `${anoNum}-01-01` : `${anoNum}-${padMes}-01`);
+  const dtFim = dataFim || (isTodas ? `${anoNum}-12-31` : `${anoNum}-${padMes}-${String(ultimoDia).padStart(2, '0')}`);
 
-  // Vencimento do DAS: dia 20 do mês subsequente (se sábado/domingo prorroga)
   let vencMes = mesNum + 1;
   let vencAno = anoNum;
   if (vencMes > 12) {
     vencMes = 1;
     vencAno += 1;
   }
-  const dtVencDAS = `${vencAno}-${String(vencMes).padStart(2, '0')}-20`;
+  const dtVencDAS = isTodas ? `${anoNum + 1}-01-20` : `${vencAno}-${String(vencMes).padStart(2, '0')}-20`;
 
   const mesesNomes = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
-  const nomeMes = mesesNomes[mesNum - 1] || 'Competência';
+  const nomeMes = isTodas ? `Exercício ${anoNum}` : (mesesNomes[mesNum - 1] || 'Competência');
 
   return {
-    competencia: `${anoNum}-${padMes}`,
-    competenciaFormatada: `${padMes}/${anoNum}`,
-    competenciaExtenso: `${nomeMes} de ${anoNum}`,
-    mes: padMes,
+    competencia: isTodas ? 'TODAS' : `${anoNum}-${padMes}`,
+    competenciaFormatada: isTodas ? `Exercício ${anoNum}` : `${padMes}/${anoNum}`,
+    competenciaExtenso: isTodas ? `Exercício Completo de ${anoNum}` : `${nomeMes} de ${anoNum}`,
+    mes: isTodas ? 'TODAS' : padMes,
     nomeMes,
     ano: String(anoNum),
     dataInicio: dtInicio,
@@ -450,7 +450,9 @@ app.post('/api/automacao/fechamento-cliente', express.json(), async (req, res) =
       return res.status(400).json({ success: false, error: 'ID do cliente não informado.' });
     }
 
-    const client = (scanner.cache.clients || []).find(c => c.id === clientId) || db.obterEmpresasDetalhes().find(e => e.id === clientId);
+    const cleanReqId = String(clientId || '').replace(/\D/g, '');
+    const client = (scanner.cache.clients || []).find(c => String(c.id) === String(clientId) || (cleanReqId && String(c.cnpj || '').replace(/\D/g, '') === cleanReqId)) 
+      || (db.obterEmpresasDetalhes() || []).find(e => String(e.id) === String(clientId) || (cleanReqId && String(e.cnpj || '').replace(/\D/g, '') === cleanReqId));
     if (!client) {
       return res.status(404).json({ success: false, error: 'Cliente não encontrado no cadastro local.' });
     }
@@ -487,12 +489,17 @@ app.post('/api/automacao/fechamento-cliente', express.json(), async (req, res) =
         if (!dt) return false;
         return dt >= periodoInfo.dataInicio && dt <= periodoInfo.dataFim;
       });
+    } else if (periodoInfo.ano) {
+      // Quando competencia === 'TODAS', mas o ano foi indicado, filtra notas do ano
+      todasNotasCliente = todasNotasCliente.filter(n => {
+        const dt = n.dataEmissao ? String(n.dataEmissao).slice(0, 4) : '';
+        return !dt || dt === String(periodoInfo.ano);
+      });
     }
 
+    // Classifica precisamente a operação relativa ao CNPJ desta empresa
     for (const n of todasNotasCliente) {
-      if (!n.direcao || n.direcao === 'DESCONHECIDO') {
-        n.direcao = fiscalEngine.classificarOperacao(n, clientCnpj);
-      }
+      n.direcao = fiscalEngine.classificarOperacao(n, clientCnpj);
     }
 
     // 2. Cálculos e Apuração
@@ -503,26 +510,26 @@ app.post('/api/automacao/fechamento-cliente', express.json(), async (req, res) =
 
     // Segregação Fiscal detalhada (estilo Domínio Sistemas / PGDAS)
     const saidasST = notasSaida.filter(n => {
-      const cfop = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      const cfop = String(n.cfopPrincipal || (n.produtos && n.produtos[0]?.cfop) || (n.itens && n.itens[0]?.cfop) || '');
       return ['5405', '6405', '5403', '6403', '5401', '6401'].includes(cfop);
     });
     const valorSaidasST = saidasST.reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
 
     const saidasTributadas = notasSaida.filter(n => {
-      const cfop = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      const cfop = String(n.cfopPrincipal || (n.produtos && n.produtos[0]?.cfop) || (n.itens && n.itens[0]?.cfop) || '');
       return ['5102', '6102', '5101', '6101', '5103', '6103'].includes(cfop) || (!['5405', '6405', '5403', '6403', '5401', '6401'].includes(cfop) && !cfop.startsWith('59') && !cfop.startsWith('69'));
     });
     const valorSaidasTributadas = saidasTributadas.reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
 
     const comprasComercializacao = notasEntrada.filter(n => {
-      const raw = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      const raw = String(n.cfopPrincipal || (n.produtos && n.produtos[0]?.cfop) || (n.itens && n.itens[0]?.cfop) || '');
       const cfop = fiscalEngine.converterCFOP(raw) || '1102';
       return ['1102', '2102', '1403', '2403', '1101', '2101'].includes(cfop) || ['5102', '6102', '5405', '6405'].includes(raw);
     });
     const valorComprasComercializacao = comprasComercializacao.reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
 
     const comprasUsoConsumo = notasEntrada.filter(n => {
-      const raw = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      const raw = String(n.cfopPrincipal || (n.produtos && n.produtos[0]?.cfop) || (n.itens && n.itens[0]?.cfop) || '');
       const cfop = fiscalEngine.converterCFOP(raw) || '';
       return ['1556', '2556'].includes(cfop) || ['5556', '6556'].includes(raw);
     });
@@ -578,7 +585,7 @@ app.post('/api/automacao/fechamento-cliente', express.json(), async (req, res) =
       const parceiroCnpj = isSaida 
         ? (n.destinatario?.cnpj || n.destinatario?.cpf || '') 
         : (n.emitente?.cnpj || '');
-      const rawCfop = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      const rawCfop = String(n.cfopPrincipal || (n.produtos && n.produtos[0]?.cfop) || (n.itens && n.itens[0]?.cfop) || '');
       const cfop = isSaida ? (rawCfop || '5102') : (fiscalEngine.converterCFOP(rawCfop) || '1102');
       return {
         chave: n.chave || '',
@@ -653,8 +660,10 @@ app.get('/api/automacao/download-pacote-dominio', (req, res) => {
   try {
     const { clientId, competencia, ano, mes, dataInicio, dataFim } = req.query;
     let client = null;
+    const cleanReqId = String(clientId || '').replace(/\D/g, '');
     if (clientId) {
-      client = (scanner.cache.clients || []).find(c => c.id === clientId) || db.obterEmpresasDetalhes().find(e => e.id === clientId);
+      client = (scanner.cache.clients || []).find(c => String(c.id) === String(clientId) || (cleanReqId && String(c.cnpj || '').replace(/\D/g, '') === cleanReqId)) 
+        || (db.obterEmpresasDetalhes() || []).find(e => String(e.id) === String(clientId) || (cleanReqId && String(e.cnpj || '').replace(/\D/g, '') === cleanReqId));
     }
     const clientCnpj = client ? String(client.cnpj || '').replace(/\D/g, '') : '';
     let notas = (clientCnpj || clientId) ? db.obterNotasPorCliente(clientCnpj, clientId) : db.obterNotas();
@@ -665,9 +674,7 @@ app.get('/api/automacao/download-pacote-dominio', (req, res) => {
       notas = db.obterNotasPorCliente(clientCnpj, client.id);
     }
 
-    if (!notas || notas.length === 0) {
-      return res.status(404).send(`Nenhuma nota fiscal encontrada para ${client ? client.name : 'o cliente solicitado'} no banco de dados local para gerar o pacote.`);
-    }
+    if (!notas) notas = [];
 
     // Período e Competência
     const periodoInfo = calcularPeriodoCompetencia(competencia, ano, mes, dataInicio, dataFim);
@@ -679,6 +686,16 @@ app.get('/api/automacao/download-pacote-dominio', (req, res) => {
         if (!dt) return false;
         return dt >= periodoInfo.dataInicio && dt <= periodoInfo.dataFim;
       });
+    } else if (periodoInfo.ano) {
+      notas = notas.filter(n => {
+        const dt = n.dataEmissao ? String(n.dataEmissao).slice(0, 4) : '';
+        return !dt || dt === String(periodoInfo.ano);
+      });
+    }
+
+    // Reclassifica as notas para este cliente
+    for (const n of notas) {
+      n.direcao = fiscalEngine.classificarOperacao(n, clientCnpj);
     }
 
     const domConfig = db.obterConfigDominio() || {};
@@ -791,6 +808,152 @@ app.get('/api/automacao/download-pacote-dominio', (req, res) => {
     res.status(500).send(`Erro ao gerar pacote ZIP: ${err.message}`);
   }
 });
+
+// Endpoint: Gravar pacote de importação do Domínio diretamente na pasta do cliente no PC
+app.post('/api/automacao/salvar-pacote-pasta', express.json(), (req, res) => {
+  try {
+    const { clientId, competencia, ano, mes, dataInicio, dataFim } = req.body;
+    let client = null;
+    const cleanReqId = String(clientId || '').replace(/\D/g, '');
+    if (clientId) {
+      client = (scanner.cache.clients || []).find(c => String(c.id) === String(clientId) || (cleanReqId && String(c.cnpj || '').replace(/\D/g, '') === cleanReqId)) 
+        || (db.obterEmpresasDetalhes() || []).find(e => String(e.id) === String(clientId) || (cleanReqId && String(e.cnpj || '').replace(/\D/g, '') === cleanReqId));
+    }
+    const clientCnpj = client ? String(client.cnpj || '').replace(/\D/g, '') : '';
+    let notas = (clientCnpj || clientId) ? db.obterNotasPorCliente(clientCnpj, clientId) : db.obterNotas();
+
+    if ((!notas || notas.length === 0) && client) {
+      scanAndSaveClientNotes(client, clientCnpj);
+      notas = db.obterNotasPorCliente(clientCnpj, client.id);
+    }
+    if (!notas) notas = [];
+
+    const periodoInfo = calcularPeriodoCompetencia(ano, mes, competencia, dataInicio, dataFim);
+    if (periodoInfo.competencia !== 'TODAS') {
+      notas = notas.filter(n => {
+        const d = String(n.dataEmissao || '').slice(0, 10);
+        return d >= periodoInfo.dataInicio && d <= periodoInfo.dataFim;
+      });
+    }
+
+    const codEmpresa = client ? (client.codigoDominio || client.codigo_dominio || '0001') : '0001';
+    const domConfig = db.obterConfigDominio();
+
+    const layout19Entradas = fiscalEngine.gerarLayout19Notas(notas, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa: clientCnpj,
+      tipoNotas: '02',
+      filtroDirecao: 'ENTRADA',
+      acumuladorCompra: domConfig.acumulador_compra,
+      acumuladorUsoConsumo: domConfig.acumulador_uso_consumo,
+      acumuladorServico: domConfig.acumulador_servico_tomado
+    });
+
+    const layout19Saidas = fiscalEngine.gerarLayout19Notas(notas, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa: clientCnpj,
+      tipoNotas: '03',
+      filtroDirecao: 'SAIDA',
+      acumuladorVenda: domConfig.acumulador_venda
+    });
+
+    const layout19Consolidado = fiscalEngine.gerarLayout19Notas(notas, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa: clientCnpj,
+      tipoNotas: '02',
+      acumuladorCompra: domConfig.acumulador_compra,
+      acumuladorVenda: domConfig.acumulador_venda,
+      acumuladorUsoConsumo: domConfig.acumulador_uso_consumo,
+      acumuladorServico: domConfig.acumulador_servico_tomado
+    });
+
+    const layout3Text = fiscalEngine.gerarLayout3Participantes(notas, {
+      codigoEmpresa: codEmpresa
+    });
+
+    const lancamentos = [];
+    notas.forEach((n, idx) => {
+      const isSaida = n.direcao === 'SAIDA';
+      const lanc = n.lancamentoContabil || fiscalEngine.gerarLancamentoContabil(n, {});
+      const deb = lanc?.debito || lanc?.contaDebito || (isSaida ? '1.1.2.01.0001 - Clientes a Receber' : '1.1.5.01.0001 - Estoque / Mercadorias');
+      const cred = lanc?.credito || lanc?.contaCredito || (isSaida ? '3.1.1.01.0001 - Receita Bruta de Vendas' : '2.1.1.01.0001 - Fornecedores a Pagar');
+      const vlr = (lanc?.valor || n.totais?.valorNota || n.valorTotal || 0).toFixed(2);
+      const dataLanc = lanc?.data || (n.dataEmissao ? String(n.dataEmissao).slice(0, 10).split('-').reverse().join('/') : '01/01/2026');
+      const hist = lanc?.historico || `NF ${n.numero || idx + 1}`;
+      lancamentos.push(`LOTE ${String(idx + 1).padStart(4, '0')} | DATA: ${dataLanc} | DEB: ${deb} | CRED: ${cred} | VALOR: R$ ${vlr} | HIST: ${hist}`);
+    });
+
+    const faturamentoBruto = notas.filter(n => n.direcao === 'SAIDA').reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
+    const totalCompras = notas.filter(n => n.direcao === 'ENTRADA').reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
+
+    const resumoTxt = [
+      '========================================================================',
+      `PACOTE DE IMPORTAÇÃO AUTOMÁTICA - DOMÍNIO SISTEMAS (THOMSON REUTERS)`,
+      `Empresa: ${client ? (client.name || client.razao_social) : 'Todas as Empresas'} | Código Domínio: ${codEmpresa}`,
+      `CNPJ: ${clientCnpj || 'Não informado'}`,
+      `Competência: ${periodoInfo.competenciaFormatada} (${periodoInfo.competenciaExtenso})`,
+      `Período de Apuração: ${periodoInfo.dataInicioFormatada} até ${periodoInfo.dataFimFormatada}`,
+      `Vencimento do DAS: ${periodoInfo.vencimentoDASFormatado}`,
+      `Data de Geração: ${new Date().toLocaleString('pt-BR')}`,
+      '========================================================================',
+      `Faturamento Bruto (Saídas): R$ ${faturamentoBruto.toFixed(2)}`,
+      `Total de Compras (Entradas): R$ ${totalCompras.toFixed(2)}`,
+      `Total de Notas Fiscais no Lote: ${notas.length}`,
+      '',
+      'ARQUIVOS PRONTOS NESTA PASTA PARA IMPORTAR NO DOMÍNIO:',
+      '1. 01_NOTAS_ENTRADAS_LAYOUT19.TXT -> Domínio Escrita Fiscal (Importador > Notas Fiscais > Entradas)',
+      '2. 01_NOTAS_SAIDAS_LAYOUT19.TXT   -> Domínio Escrita Fiscal (Importador > Notas Fiscais > Saídas)',
+      '3. 02_PARTICIPANTES_LAYOUT3.TXT   -> Domínio Escrita Fiscal (Importador > Fornecedores e Clientes)',
+      '4. 03_PARTIDAS_DOBRADAS_CONTABIL.TXT -> Domínio Contábil (Importar Lançamentos Contábeis)'
+    ].join('\r\n');
+
+    let targetDir = '';
+    const compDirName = `DOMINIO_${periodoInfo.competencia.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    if (client && client.path && fs.existsSync(client.path)) {
+      targetDir = path.join(client.path, compDirName);
+    } else if (client && fs.existsSync('X:\\')) {
+      const clientFolder = (client.name || client.razao_social || 'EMPRESA').replace(/[<>:"/\\|?*]/g, '_');
+      targetDir = path.join('X:\\', clientFolder, compDirName);
+    } else {
+      targetDir = path.join('C:\\Contabil', (client ? (client.name || client.razao_social) : 'EMPRESAS').replace(/[<>:"/\\|?*]/g, '_'), compDirName);
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    fs.writeFileSync(path.join(targetDir, '00_INSTRUCOES_E_RESUMO.TXT'), resumoTxt, 'utf8');
+    if (layout19Entradas) fs.writeFileSync(path.join(targetDir, '01_NOTAS_ENTRADAS_LAYOUT19.TXT'), layout19Entradas, 'utf8');
+    if (layout19Saidas) fs.writeFileSync(path.join(targetDir, '01_NOTAS_SAIDAS_LAYOUT19.TXT'), layout19Saidas, 'utf8');
+    if (layout19Consolidado) fs.writeFileSync(path.join(targetDir, '01_NOTAS_LAYOUT19.TXT'), layout19Consolidado, 'utf8');
+    if (layout3Text) fs.writeFileSync(path.join(targetDir, '02_PARTICIPANTES_LAYOUT3.TXT'), layout3Text, 'utf8');
+    if (lancamentos.length > 0) fs.writeFileSync(path.join(targetDir, '03_PARTIDAS_DOBRADAS_CONTABIL.TXT'), lancamentos.join('\r\n'), 'utf8');
+
+    // Abre a pasta no Windows Explorer
+    try {
+      const { spawn } = require('child_process');
+      spawn('explorer.exe', [targetDir], { detached: true, stdio: 'ignore' });
+    } catch (e) {}
+
+    res.json({
+      success: true,
+      message: 'Arquivos gravados diretamente na pasta do computador com sucesso!',
+      targetDir,
+      totalNotas: notas.length,
+      arquivos: [
+        '00_INSTRUCOES_E_RESUMO.TXT',
+        '01_NOTAS_ENTRADAS_LAYOUT19.TXT',
+        '01_NOTAS_SAIDAS_LAYOUT19.TXT',
+        '02_PARTICIPANTES_LAYOUT3.TXT',
+        '03_PARTIDAS_DOBRADAS_CONTABIL.TXT'
+      ]
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: `Erro ao gravar arquivos na pasta: ${err.message}` });
+  }
+});
+
 
 // Endpoint: Exportar Notas no Layout 19 oficial do Domínio Sistemas (Escrita Fiscal)
 // Endpoint: Obter Configurações de Integração do Domínio Sistemas
@@ -1920,6 +2083,42 @@ app.post('/api/explorer/zip/extract', (req, res) => {
 });
 
 // Endpoint: Criar nova pasta de cliente padronizada
+
+// Endpoint: Abrir arquivo diretamente no Windows com seu aplicativo padrão (Excel, Bloco de Notas, etc.)
+app.post('/api/explorer/open-external', express.json(), (req, res) => {
+  try {
+    let filePath = req.body.path || '';
+    if (!filePath) return res.status(400).json({ error: 'Caminho não fornecido.' });
+    if (fs.existsSync('X:\\')) {
+      filePath = filePath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    filePath = path.normalize(filePath);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Arquivo não encontrado.' });
+
+    const { spawn } = require('child_process');
+    spawn('cmd.exe', ['/c', 'start', '""', filePath], { detached: true, stdio: 'ignore' });
+    res.json({ success: true, message: `Arquivo aberto no Windows: ${path.basename(filePath)}` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint: Salvar edições de texto diretamente no arquivo no PC
+app.post('/api/explorer/save-file', express.json(), (req, res) => {
+  try {
+    let { path: filePath, content } = req.body;
+    if (!filePath) return res.status(400).json({ error: 'Caminho não fornecido.' });
+    if (fs.existsSync('X:\\')) {
+      filePath = filePath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+    }
+    filePath = path.normalize(filePath);
+    fs.writeFileSync(filePath, content || '', 'utf8');
+    res.json({ success: true, message: 'Arquivo salvo com sucesso no seu computador!' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.post('/api/clients/create', (req, res) => {
   try {
     const { regime, clientName, cnpj } = req.body;
