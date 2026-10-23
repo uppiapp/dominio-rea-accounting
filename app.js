@@ -5128,7 +5128,7 @@ async function executarMotorREA() {
 
     reaDadosCache = data;
     renderDadosREA(data);
-    showToast('✅ Ontologia REA processada com equilíbrio patrimonial!', 'success');
+    showToast('✅ Demonstrações e Balancete atualizados com sucesso!', 'success');
   } catch (err) {
     showToast(`Erro no motor REA: ${err.message}`, 'error');
   }
