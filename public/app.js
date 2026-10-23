@@ -3008,8 +3008,6 @@ function fecharModalFechamento1Clique() {
   const modal = document.getElementById('modalFechamento1Clique');
   if (modal) modal.classList.add('hidden');
 }
-  if (modal) modal.classList.add('hidden');
-}
 
 // Manipulador da troca de empresa ativa na Central de Notas
 function handleSelectEmpresaNotas(clientId) {
