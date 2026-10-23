@@ -113,6 +113,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_empresas_cod_dom ON empresas_detalhes(codigo_dominio);
 `);
 
+// Migração retroativa segura para colunas cliente_id e cnpj_empresa
+try { db.exec('ALTER TABLE notas_fiscais ADD COLUMN cliente_id TEXT;'); } catch(e) {}
+try { db.exec('ALTER TABLE notas_fiscais ADD COLUMN cnpj_empresa TEXT;'); } catch(e) {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_notas_cliente_id ON notas_fiscais(cliente_id);'); } catch(e) {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_notas_cnpj_empresa ON notas_fiscais(cnpj_empresa);'); } catch(e) {}
+
 console.log('[SQLite] Banco de dados industrial mc_contabil.db inicializado em modo WAL com sucesso!');
 
 // ============================================================
@@ -123,12 +129,17 @@ const stmtSalvarNota = db.prepare(`
     chave, numero, serie, tipo, data_emissao, direcao,
     cnpj_emitente, razao_emitente, cnpj_destinatario, razao_destinatario,
     valor_total, valor_icms, valor_pis, valor_cofins, valor_ipi,
-    dados_completos_json, data_importacao
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    dados_completos_json, data_importacao, cliente_id, cnpj_empresa
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 function salvarNota(n) {
   const tot = n.totais || {};
+  const cleanEmit = String(n.emitente?.cnpj || n.emitente?.cpf || '').replace(/\D/g, '');
+  const cleanDest = String(n.destinatario?.cnpj || n.destinatario?.cpf || '').replace(/\D/g, '');
+  const cleanEmpresa = String(n.cnpjEmpresa || '').replace(/\D/g, '');
+  const clienteId = n.clienteId || null;
+
   stmtSalvarNota.run(
     n.chave || `CHV_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
     String(n.numero || ''),
@@ -136,9 +147,9 @@ function salvarNota(n) {
     n.tipo || 'NFE',
     n.dataEmissao || '',
     n.direcao || 'ENTRADA',
-    n.emitente?.cnpj || '',
+    cleanEmit,
     n.emitente?.razaoSocial || '',
-    n.destinatario?.cnpj || n.destinatario?.cpf || '',
+    cleanDest,
     n.destinatario?.razaoSocial || '',
     tot.valorNota || tot.valorTotal || n.valorTotal || 0,
     tot.valorICMS || 0,
@@ -146,18 +157,54 @@ function salvarNota(n) {
     tot.valorCOFINS || 0,
     tot.valorIPI || 0,
     JSON.stringify(n),
-    new Date().toISOString()
+    new Date().toISOString(),
+    clienteId,
+    cleanEmpresa
   );
 }
 
 function salvarNotasBatch(lista) {
-  for (const n of lista) {
-    salvarNota(n);
+  if (!Array.isArray(lista) || lista.length === 0) return;
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    for (const n of lista) {
+      salvarNota(n);
+    }
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
   }
 }
 
-function obterNotas() {
+function obterNotas(filterCnpj) {
+  if (filterCnpj) {
+    return obterNotasPorCliente(filterCnpj);
+  }
   const rows = db.prepare('SELECT dados_completos_json FROM notas_fiscais ORDER BY data_emissao DESC').all();
+  return rows.map(r => {
+    try { return JSON.parse(r.dados_completos_json); } catch(e) { return null; }
+  }).filter(Boolean);
+}
+
+function obterNotasPorCliente(cnpj, clientId) {
+  const clean = String(cnpj || '').replace(/\D/g, '');
+  if (!clean && !clientId) return [];
+
+  let query = 'SELECT dados_completos_json FROM notas_fiscais WHERE 1=0';
+  const params = [];
+
+  if (clean) {
+    query += ' OR cnpj_empresa = ? OR cnpj_emitente = ? OR cnpj_destinatario = ? OR dados_completos_json LIKE ?';
+    params.push(clean, clean, clean, `%"${clean}"%`);
+  }
+  if (clientId) {
+    query += ' OR cliente_id = ? OR dados_completos_json LIKE ?';
+    params.push(clientId, `%"${clientId}"%`);
+  }
+  query += ' ORDER BY data_emissao DESC';
+
+  const rows = db.prepare(query).all(...params);
   return rows.map(r => {
     try { return JSON.parse(r.dados_completos_json); } catch(e) { return null; }
   }).filter(Boolean);
@@ -279,13 +326,16 @@ function limparFolha() {
 // ============================================================
 function migrarArquivosLegados() {
   try {
-    // 1. Migra notas_processadas.json se existir
+    // 1. Migra notas_processadas.json se a tabela estiver vazia
     const pNotas = path.join(__dirname, 'notas_processadas.json');
     if (fs.existsSync(pNotas)) {
-      const data = JSON.parse(fs.readFileSync(pNotas, 'utf8'));
-      if (Array.isArray(data) && data.length > 0) {
-        salvarNotasBatch(data);
-        console.log(`[SQLite] Migradas ${data.length} notas fiscais do JSON legado.`);
+      const rowCount = db.prepare('SELECT COUNT(*) as c FROM notas_fiscais').get();
+      if (!rowCount || rowCount.c === 0) {
+        const data = JSON.parse(fs.readFileSync(pNotas, 'utf8'));
+        if (Array.isArray(data) && data.length > 0) {
+          salvarNotasBatch(data);
+          console.log(`[SQLite] Migradas ${data.length} notas fiscais do JSON legado.`);
+        }
       }
     }
 
@@ -503,6 +553,7 @@ module.exports = {
   salvarNota,
   salvarNotasBatch,
   obterNotas,
+  obterNotasPorCliente,
   limparNotas,
   salvarTransacoesExtrato,
   obterTransacoesExtrato,

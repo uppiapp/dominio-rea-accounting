@@ -138,9 +138,8 @@ app.post('/api/notas/processar', uploadXML.array('xmlFiles', 100), async (req, r
           // Gerar lançamento contábil automático (partida dobrada)
           nota.lancamentoContabil = fiscalEngine.gerarLancamentoContabil(nota, {});
 
-          // Salvar no SQLite e no motor fiscal
+          // Salvar no SQLite (WAL)
           db.salvarNota(nota);
-          fiscalEngine.salvarNotaProcessada(nota);
           resultados.push(nota);
         } else {
           erros.push({ arquivo: file.originalname, erro: 'Não foi possível interpretar o XML.' });
@@ -249,7 +248,6 @@ app.post('/api/notas/escanear-rede', express.json(), async (req, res) => {
             nota.nomeArquivo = path.basename(filePath);
             nota.lancamentoContabil = fiscalEngine.gerarLancamentoContabil(nota, {});
             db.salvarNota(nota);
-            fiscalEngine.salvarNotaProcessada(nota);
             resultados.push(nota);
           }
         } catch (err) {
@@ -272,7 +270,6 @@ app.post('/api/notas/escanear-rede', express.json(), async (req, res) => {
                   nota.nomeArquivo = `${path.basename(filePath)} > ${path.basename(entry.entryName)}`;
                   nota.lancamentoContabil = fiscalEngine.gerarLancamentoContabil(nota, {});
                   db.salvarNota(nota);
-                  fiscalEngine.salvarNotaProcessada(nota);
                   resultados.push(nota);
                 }
               } catch (errEntry) {
@@ -312,6 +309,486 @@ app.post('/api/notas/calcular-simples', express.json(), (req, res) => {
     res.json({ success: true, ...resultado });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Helper para varrer e importar notas fiscais de um cliente específico de forma otimizada
+function scanAndSaveClientNotes(client, clientCnpj) {
+  if (!client || !client.path) return [];
+  let targetPath = client.path;
+  if (fs.existsSync('X:\\')) {
+    targetPath = targetPath.replace(/^(\\\\\\\\|\\\\|\/\/|\/)?192\.168\.15\.2[\\\/]+mc assessoria contabil/i, 'X:');
+  }
+  targetPath = path.normalize(targetPath);
+  if (!fs.existsSync(targetPath)) return [];
+
+  const candidateFiles = findFilesRecursively(targetPath, /\.(xml|zip)$/i, 200);
+  const resultados = [];
+  const AdmZip = require('adm-zip');
+
+  for (const filePath of candidateFiles) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.xml') {
+      try {
+        const nota = nfeParser.parseNFeFile(filePath);
+        if (nota) {
+          nota.clienteId = client.id;
+          if (clientCnpj) {
+            nota.direcao = fiscalEngine.classificarOperacao(nota, clientCnpj);
+            nota.cnpjEmpresa = clientCnpj;
+          }
+          nota.nomeArquivo = path.basename(filePath);
+          nota.lancamentoContabil = fiscalEngine.gerarLancamentoContabil(nota, {});
+          resultados.push(nota);
+        }
+      } catch (e) {}
+    } else if (ext === '.zip') {
+      try {
+        const zip = new AdmZip(filePath);
+        const entries = zip.getEntries();
+        for (const entry of entries) {
+          if (!entry.isDirectory && entry.entryName.toLowerCase().endsWith('.xml')) {
+            try {
+              const xmlContent = zip.readAsText(entry);
+              const nota = nfeParser.parseNFeXML(xmlContent);
+              if (nota) {
+                nota.clienteId = client.id;
+                if (clientCnpj) {
+                  nota.direcao = fiscalEngine.classificarOperacao(nota, clientCnpj);
+                  nota.cnpjEmpresa = clientCnpj;
+                }
+                nota.nomeArquivo = `${path.basename(filePath)} > ${path.basename(entry.entryName)}`;
+                nota.lancamentoContabil = fiscalEngine.gerarLancamentoContabil(nota, {});
+                resultados.push(nota);
+              }
+            } catch (errEntry) {}
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Grava em lote atômico no SQLite de alta velocidade
+  if (resultados.length > 0) {
+    try {
+      db.salvarNotasBatch(resultados);
+    } catch (e) {
+      console.warn('[SQLite] Erro ao salvar lote de notas:', e.message);
+    }
+  }
+
+  return resultados;
+}
+
+// Helper para calcular datas, períodos e vencimentos da competência fiscal
+function calcularPeriodoCompetencia(competencia, ano, mes, dataInicio, dataFim) {
+  let finalAno = ano ? String(ano).trim() : null;
+  let finalMes = mes ? String(mes).trim() : null;
+
+  if (competencia && competencia !== 'TODAS') {
+    const compStr = String(competencia).trim();
+    if (compStr.includes('/')) {
+      const parts = compStr.split('/');
+      finalMes = parts[0].padStart(2, '0');
+      finalAno = parts[1];
+    } else if (compStr.includes('-')) {
+      const parts = compStr.split('-');
+      finalAno = parts[0];
+      finalMes = parts[1].padStart(2, '0');
+    }
+  }
+
+  const hoje = new Date();
+  if (!finalAno) finalAno = String(hoje.getFullYear());
+  if (!finalMes) finalMes = String(hoje.getMonth() + 1).padStart(2, '0');
+
+  const anoNum = parseInt(finalAno, 10) || hoje.getFullYear();
+  const mesNum = parseInt(finalMes, 10) || (hoje.getMonth() + 1);
+
+  const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+  const padMes = String(mesNum).padStart(2, '0');
+
+  const dtInicio = dataInicio || `${anoNum}-${padMes}-01`;
+  const dtFim = dataFim || `${anoNum}-${padMes}-${String(ultimoDia).padStart(2, '0')}`;
+
+  // Vencimento do DAS: dia 20 do mês subsequente (se sábado/domingo prorroga)
+  let vencMes = mesNum + 1;
+  let vencAno = anoNum;
+  if (vencMes > 12) {
+    vencMes = 1;
+    vencAno += 1;
+  }
+  const dtVencDAS = `${vencAno}-${String(vencMes).padStart(2, '0')}-20`;
+
+  const mesesNomes = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+  const nomeMes = mesesNomes[mesNum - 1] || 'Competência';
+
+  return {
+    competencia: `${anoNum}-${padMes}`,
+    competenciaFormatada: `${padMes}/${anoNum}`,
+    competenciaExtenso: `${nomeMes} de ${anoNum}`,
+    mes: padMes,
+    nomeMes,
+    ano: String(anoNum),
+    dataInicio: dtInicio,
+    dataFim: dtFim,
+    dataInicioFormatada: dtInicio.split('-').reverse().join('/'),
+    dataFimFormatada: dtFim.split('-').reverse().join('/'),
+    vencimentoDAS: dtVencDAS,
+    vencimentoDASFormatado: dtVencDAS.split('-').reverse().join('/')
+  };
+}
+
+// Endpoint: Super Automação 1-Clique - Fechamento Fiscal Completo do Cliente
+app.post('/api/automacao/fechamento-cliente', express.json(), async (req, res) => {
+  try {
+    const { clientId, anexoSimples = 1, receita12meses = 360000, competencia, ano, mes, dataInicio, dataFim } = req.body;
+    if (!clientId) {
+      return res.status(400).json({ success: false, error: 'ID do cliente não informado.' });
+    }
+
+    const client = (scanner.cache.clients || []).find(c => c.id === clientId) || db.obterEmpresasDetalhes().find(e => e.id === clientId);
+    if (!client) {
+      return res.status(404).json({ success: false, error: 'Cliente não encontrado no cadastro local.' });
+    }
+
+    const clientCnpj = String(client.cnpj || '').replace(/\D/g, '');
+    let existingNotasDb = db.obterNotasPorCliente(clientCnpj, client.id);
+
+    // Se não há notas ou solicitado explicitamente recarregar, varre a pasta na rede
+    let novasNotas = [];
+    if (!existingNotasDb || existingNotasDb.length === 0 || req.body.rescanear === true) {
+      novasNotas = scanAndSaveClientNotes(client, clientCnpj);
+      existingNotasDb = db.obterNotasPorCliente(clientCnpj, client.id);
+    }
+
+    // Unifica notas recém-escaneadas com notas existentes no SQLite do cliente
+    const notasMap = new Map();
+    for (const n of existingNotasDb) {
+      const k = n.chave || `${n.numero}_${n.serie}`;
+      notasMap.set(k, n);
+    }
+    for (const n of novasNotas) {
+      const k = n.chave || `${n.numero}_${n.serie}`;
+      notasMap.set(k, n);
+    }
+    let todasNotasCliente = Array.from(notasMap.values());
+
+    // Período e Competência
+    const periodoInfo = calcularPeriodoCompetencia(competencia, ano, mes, dataInicio, dataFim);
+
+    // Filtra por competência ou intervalo de datas (se não for explicitamente 'TODAS')
+    if (competencia !== 'TODAS') {
+      todasNotasCliente = todasNotasCliente.filter(n => {
+        const dt = n.dataEmissao ? String(n.dataEmissao).slice(0, 10) : '';
+        if (!dt) return false;
+        return dt >= periodoInfo.dataInicio && dt <= periodoInfo.dataFim;
+      });
+    }
+
+    for (const n of todasNotasCliente) {
+      if (!n.direcao || n.direcao === 'DESCONHECIDO') {
+        n.direcao = fiscalEngine.classificarOperacao(n, clientCnpj);
+      }
+    }
+
+    // 2. Cálculos e Apuração
+    const notasSaida = todasNotasCliente.filter(n => n.direcao === 'SAIDA');
+    const notasEntrada = todasNotasCliente.filter(n => n.direcao === 'ENTRADA');
+    const faturamentoBruto = notasSaida.reduce((sum, n) => sum + (n.totais?.valorNota || n.valorTotal || 0), 0);
+    const totalCompras = notasEntrada.reduce((sum, n) => sum + (n.totais?.valorNota || n.valorTotal || 0), 0);
+
+    // Segregação Fiscal detalhada (estilo Domínio Sistemas / PGDAS)
+    const saidasST = notasSaida.filter(n => {
+      const cfop = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      return ['5405', '6405', '5403', '6403', '5401', '6401'].includes(cfop);
+    });
+    const valorSaidasST = saidasST.reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
+
+    const saidasTributadas = notasSaida.filter(n => {
+      const cfop = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      return ['5102', '6102', '5101', '6101', '5103', '6103'].includes(cfop) || (!['5405', '6405', '5403', '6403', '5401', '6401'].includes(cfop) && !cfop.startsWith('59') && !cfop.startsWith('69'));
+    });
+    const valorSaidasTributadas = saidasTributadas.reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
+
+    const comprasComercializacao = notasEntrada.filter(n => {
+      const raw = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      const cfop = fiscalEngine.converterCFOP(raw) || '1102';
+      return ['1102', '2102', '1403', '2403', '1101', '2101'].includes(cfop) || ['5102', '6102', '5405', '6405'].includes(raw);
+    });
+    const valorComprasComercializacao = comprasComercializacao.reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
+
+    const comprasUsoConsumo = notasEntrada.filter(n => {
+      const raw = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      const cfop = fiscalEngine.converterCFOP(raw) || '';
+      return ['1556', '2556'].includes(cfop) || ['5556', '6556'].includes(raw);
+    });
+    const valorComprasUsoConsumo = comprasUsoConsumo.reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
+
+    // Apuração Simples Nacional (Anexos I a V da LC 123/2006)
+    const calculoSimples = fiscalEngine.calcularImpostoSimples(receita12meses, faturamentoBruto, anexoSimples);
+
+    // 3. Geração dos Layouts do Domínio Sistemas
+    const domConfig = db.obterConfigDominio() || {};
+    const codEmpresa = (client.codigoDominio || client.codigo_dominio) || domConfig.codigoEmpresa || 1;
+
+    // Layout 19 Entradas
+    const layout19Entradas = fiscalEngine.gerarLayout19Notas(todasNotasCliente, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa: clientCnpj,
+      tipoNotas: '02',
+      filtroDirecao: 'ENTRADA',
+      acumuladorCompra: domConfig.acumulador_compra,
+      acumuladorUsoConsumo: domConfig.acumulador_uso_consumo,
+      acumuladorServico: domConfig.acumulador_servico_tomado
+    });
+
+    // Layout 19 Saídas
+    const layout19Saidas = fiscalEngine.gerarLayout19Notas(todasNotasCliente, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa: clientCnpj,
+      tipoNotas: '03',
+      filtroDirecao: 'SAIDA',
+      acumuladorVenda: domConfig.acumulador_venda
+    });
+
+    const layout19Consolidado = fiscalEngine.gerarLayout19Notas(todasNotasCliente, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa: clientCnpj,
+      tipoNotas: '02',
+      acumuladorCompra: domConfig.acumulador_compra,
+      acumuladorVenda: domConfig.acumulador_venda,
+      acumuladorUsoConsumo: domConfig.acumulador_uso_consumo,
+      acumuladorServico: domConfig.acumulador_servico_tomado
+    });
+
+    const layout3Text = fiscalEngine.gerarLayout3Participantes(todasNotasCliente, {
+      codigoEmpresa: codEmpresa
+    });
+
+    // Extrato de notas da competência para conferência visual
+    const notasResumo = todasNotasCliente.map(n => {
+      const isSaida = n.direcao === 'SAIDA';
+      const parceiroNome = isSaida 
+        ? (n.destinatario?.razaoSocial || n.destinatario?.nomeFantasia || n.destinatario?.nome || 'Consumidor Final') 
+        : (n.emitente?.razaoSocial || n.emitente?.nomeFantasia || n.emitente?.nome || '-');
+      const parceiroCnpj = isSaida 
+        ? (n.destinatario?.cnpj || n.destinatario?.cpf || '') 
+        : (n.emitente?.cnpj || '');
+      const rawCfop = String(n.cfopPrincipal || (n.itens && n.itens[0]?.cfop) || '');
+      const cfop = isSaida ? (rawCfop || '5102') : (fiscalEngine.converterCFOP(rawCfop) || '1102');
+      return {
+        chave: n.chave || '',
+        numero: n.numero || '-',
+        serie: n.serie || '1',
+        dataEmissao: n.dataEmissao ? String(n.dataEmissao).slice(0, 10) : '',
+        direcao: n.direcao,
+        modelo: n.modelo || '55',
+        cfop,
+        cfopOriginal: rawCfop,
+        parceiro: parceiroNome,
+        cnpjCpf: parceiroCnpj,
+        valorTotal: n.totais?.valorNota || n.valorTotal || 0,
+        valorICMS: n.totais?.valorICMS || 0,
+        valorPIS: n.totais?.valorPIS || 0,
+        valorCOFINS: n.totais?.valorCOFINS || 0
+      };
+    });
+
+    const downloadZipUrl = `/api/automacao/download-pacote-dominio?clientId=${encodeURIComponent(client.id)}${competencia !== 'TODAS' ? `&competencia=${encodeURIComponent(periodoInfo.competencia)}` : '&competencia=TODAS'}`;
+
+    res.json({
+      success: true,
+      cliente: {
+        id: client.id,
+        nome: client.name || client.razao_social,
+        cnpj: client.cnpj,
+        regime: client.regime || client.regime_tributario || 'SIMPLES_NACIONAL',
+        codigoDominio: codEmpresa
+      },
+      periodo: periodoInfo,
+      resumo: {
+        totalNotasProcessadas: todasNotasCliente.length,
+        novasNotasImportadas: novasNotas.length,
+        totalSaidas: notasSaida.length,
+        totalEntradas: notasEntrada.length,
+        faturamentoBruto,
+        totalCompras,
+        simplesNacional: calculoSimples,
+        segregacao: {
+          valorSaidasST,
+          qtdSaidasST: saidasST.length,
+          valorSaidasTributadas,
+          qtdSaidasTributadas: saidasTributadas.length,
+          valorComprasComercializacao,
+          qtdComprasComercializacao: comprasComercializacao.length,
+          valorComprasUsoConsumo,
+          qtdComprasUsoConsumo: comprasUsoConsumo.length
+        },
+        impostosDestacados: {
+          icms: todasNotasCliente.reduce((sum, n) => sum + (n.totais?.valorICMS || 0), 0),
+          pis: todasNotasCliente.reduce((sum, n) => sum + (n.totais?.valorPIS || 0), 0),
+          cofins: todasNotasCliente.reduce((sum, n) => sum + (n.totais?.valorCOFINS || 0), 0)
+        }
+      },
+      dominio: {
+        layout19Linhas: layout19Consolidado ? layout19Consolidado.split('\r\n').length : 0,
+        layout19EntradasLinhas: layout19Entradas ? layout19Entradas.split('\r\n').length : 0,
+        layout19SaidasLinhas: layout19Saidas ? layout19Saidas.split('\r\n').length : 0,
+        layout3Linhas: layout3Text ? layout3Text.split('\r\n').length : 0,
+        downloadZipUrl
+      },
+      notasResumo
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint: Download do Pacote Completo do Domínio Sistemas em ZIP (1-Clique)
+app.get('/api/automacao/download-pacote-dominio', (req, res) => {
+  try {
+    const { clientId, competencia, ano, mes, dataInicio, dataFim } = req.query;
+    let client = null;
+    if (clientId) {
+      client = (scanner.cache.clients || []).find(c => c.id === clientId) || db.obterEmpresasDetalhes().find(e => e.id === clientId);
+    }
+    const clientCnpj = client ? String(client.cnpj || '').replace(/\D/g, '') : '';
+    let notas = (clientCnpj || clientId) ? db.obterNotasPorCliente(clientCnpj, clientId) : db.obterNotas();
+
+    // Se o cliente não tem notas no SQLite ainda, escaneia automaticamente (Automação Completa 1-Clique)
+    if ((!notas || notas.length === 0) && client) {
+      scanAndSaveClientNotes(client, clientCnpj);
+      notas = db.obterNotasPorCliente(clientCnpj, client.id);
+    }
+
+    if (!notas || notas.length === 0) {
+      return res.status(404).send(`Nenhuma nota fiscal encontrada para ${client ? client.name : 'o cliente solicitado'} no banco de dados local para gerar o pacote.`);
+    }
+
+    // Período e Competência
+    const periodoInfo = calcularPeriodoCompetencia(competencia, ano, mes, dataInicio, dataFim);
+
+    // Filtra por competência se informada
+    if (competencia !== 'TODAS') {
+      notas = notas.filter(n => {
+        const dt = n.dataEmissao ? String(n.dataEmissao).slice(0, 10) : '';
+        if (!dt) return false;
+        return dt >= periodoInfo.dataInicio && dt <= periodoInfo.dataFim;
+      });
+    }
+
+    const domConfig = db.obterConfigDominio() || {};
+    const codEmpresa = (client && (client.codigoDominio || client.codigo_dominio)) || domConfig.codigoEmpresa || 1;
+    const cnpjEmpresa = clientCnpj || (client && client.cnpj) || '';
+
+    // Arquivo 1: Entradas (Layout 19 com tipo 02)
+    const layout19Entradas = fiscalEngine.gerarLayout19Notas(notas, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa,
+      tipoNotas: '02',
+      filtroDirecao: 'ENTRADA',
+      acumuladorCompra: domConfig.acumulador_compra,
+      acumuladorUsoConsumo: domConfig.acumulador_uso_consumo,
+      acumuladorServico: domConfig.acumulador_servico_tomado
+    });
+
+    // Arquivo 2: Saídas (Layout 19 com tipo 03)
+    const layout19Saidas = fiscalEngine.gerarLayout19Notas(notas, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa,
+      tipoNotas: '03',
+      filtroDirecao: 'SAIDA',
+      acumuladorVenda: domConfig.acumulador_venda
+    });
+
+    // Arquivo Consolidado
+    const layout19Consolidado = fiscalEngine.gerarLayout19Notas(notas, {
+      codigoEmpresa: codEmpresa,
+      cnpjEmpresa,
+      tipoNotas: '02',
+      acumuladorCompra: domConfig.acumulador_compra,
+      acumuladorVenda: domConfig.acumulador_venda,
+      acumuladorUsoConsumo: domConfig.acumulador_uso_consumo,
+      acumuladorServico: domConfig.acumulador_servico_tomado
+    });
+
+    // Arquivo Participantes (Layout 3 Oficial)
+    const layout3Text = fiscalEngine.gerarLayout3Participantes(notas, {
+      codigoEmpresa: codEmpresa
+    });
+
+    // Lançamentos Contábeis de Partidas Dobradas (Nunca undefined)
+    const lancamentos = [];
+    notas.forEach((n, idx) => {
+      const isSaida = n.direcao === 'SAIDA';
+      const lanc = n.lancamentoContabil || fiscalEngine.gerarLancamentoContabil(n, {});
+      const deb = lanc?.debito || lanc?.contaDebito || (isSaida ? '1.1.2.01.0001 - Clientes a Receber' : '1.1.5.01.0001 - Estoque / Mercadorias');
+      const cred = lanc?.credito || lanc?.contaCredito || (isSaida ? '3.1.1.01.0001 - Receita Bruta de Vendas' : '2.1.1.01.0001 - Fornecedores a Pagar');
+      const vlr = (lanc?.valor || n.totais?.valorNota || n.valorTotal || 0).toFixed(2);
+      const dataLanc = lanc?.data || (n.dataEmissao ? String(n.dataEmissao).slice(0, 10).split('-').reverse().join('/') : '01/01/2026');
+      const hist = lanc?.historico || `NF ${n.numero || idx + 1}`;
+      lancamentos.push(`LOTE ${String(idx + 1).padStart(4, '0')} | DATA: ${dataLanc} | DEB: ${deb} | CRED: ${cred} | VALOR: R$ ${vlr} | HIST: ${hist}`);
+    });
+
+    const faturamentoBruto = notas.filter(n => n.direcao === 'SAIDA').reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
+    const totalCompras = notas.filter(n => n.direcao === 'ENTRADA').reduce((s, n) => s + (n.totais?.valorNota || n.valorTotal || 0), 0);
+
+    const resumoTxt = [
+      '========================================================================',
+      `PACOTE DE IMPORTAÇÃO AUTOMÁTICA - DOMÍNIO SISTEMAS (THOMSON REUTERS)`,
+      `Empresa: ${client ? (client.name || client.razao_social) : 'Todas as Empresas'} | Código Domínio: ${codEmpresa}`,
+      `CNPJ: ${clientCnpj || 'Não informado'}`,
+      `Competência: ${periodoInfo.competenciaFormatada} (${periodoInfo.competenciaExtenso})`,
+      `Período de Apuração: ${periodoInfo.dataInicioFormatada} até ${periodoInfo.dataFimFormatada}`,
+      `Vencimento do DAS: ${periodoInfo.vencimentoDASFormatado}`,
+      `Data de Geração: ${new Date().toLocaleString('pt-BR')}`,
+      '========================================================================',
+      `Faturamento Bruto (Saídas): R$ ${faturamentoBruto.toFixed(2)}`,
+      `Total de Compras (Entradas): R$ ${totalCompras.toFixed(2)}`,
+      `Total de Notas Fiscais no Lote: ${notas.length}`,
+      `Linhas do Arquivo Layout 19 Entradas: ${layout19Entradas ? layout19Entradas.split('\r\n').length : 0}`,
+      `Linhas do Arquivo Layout 19 Saídas: ${layout19Saidas ? layout19Saidas.split('\r\n').length : 0}`,
+      `Linhas do Arquivo Layout 3 (Fornecedores/Clientes): ${layout3Text ? layout3Text.split('\r\n').length : 0}`,
+      `Lançamentos Contábeis de Partidas Dobradas: ${lancamentos.length}`,
+      '',
+      'INSTRUÇÕES DE IMPORTAÇÃO NO DOMÍNIO SISTEMAS:',
+      '1. No Domínio Escrita Fiscal:',
+      '   - Utilitários > Importação > Importador > Fornecedores e Clientes > Selecione "02_PARTICIPANTES_LAYOUT3.TXT"',
+      '   - Utilitários > Importação > Importador > Notas Fiscais > Tipo "Entradas" > Selecione "01_NOTAS_ENTRADAS_LAYOUT19.TXT"',
+      '   - Utilitários > Importação > Importador > Notas Fiscais > Tipo "Saídas" > Selecione "01_NOTAS_SAIDAS_LAYOUT19.TXT"',
+      '2. No Domínio Contábil:',
+      '   - Utilitários > Importação > Importar Lançamentos Contábeis > Selecione "03_PARTIDAS_DOBRADAS_CONTABIL.TXT"',
+      '',
+      'ARQUIVO DE COMPATIBILIDADE:',
+      '- "01_NOTAS_LAYOUT19.TXT" contém todas as notas consolidadas em arquivo único.'
+    ].join('\r\n');
+
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+    if (layout19Entradas) {
+      zip.addFile('01_NOTAS_ENTRADAS_LAYOUT19.TXT', Buffer.from(layout19Entradas, 'utf8'));
+    }
+    if (layout19Saidas) {
+      zip.addFile('01_NOTAS_SAIDAS_LAYOUT19.TXT', Buffer.from(layout19Saidas, 'utf8'));
+    }
+    zip.addFile('01_NOTAS_LAYOUT19.TXT', Buffer.from(layout19Consolidado, 'utf8'));
+    zip.addFile('02_PARTICIPANTES_LAYOUT3.TXT', Buffer.from(layout3Text, 'utf8'));
+    zip.addFile('03_PARTIDAS_DOBRADAS_CONTABIL.TXT', Buffer.from(lancamentos.join('\r\n'), 'utf8'));
+    zip.addFile('00_INSTRUCOES_E_RESUMO.TXT', Buffer.from(resumoTxt, 'utf8'));
+
+    const nomeSanitizado = (client ? (client.name || client.razao_social) : 'MC_HUB').replace(/[^a-zA-Z0-9]/g, '_');
+    const compNome = competencia === 'TODAS' ? 'GERAL' : periodoInfo.competencia;
+    const zipBuffer = zip.toBuffer();
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="PACOTE_DOMINIO_${nomeSanitizado}_${compNome}.zip"`);
+    res.send(zipBuffer);
+  } catch (err) {
+    res.status(500).send(`Erro ao gerar pacote ZIP: ${err.message}`);
   }
 });
 
@@ -503,15 +980,27 @@ app.post('/api/rede/conectar', express.json(), (req, res) => {
 // Endpoint: Exportar Notas no Layout 19 oficial do Domínio Sistemas (Escrita Fiscal)
 app.get('/api/notas/exportar-dominio', (req, res) => {
   try {
-    const notas = db.obterNotas();
+    const { clientId, cnpj } = req.query;
+    let targetCnpj = cnpj;
+    let client = null;
+    if (clientId) {
+      client = (scanner.cache.clients || []).find(c => c.id === clientId) || db.obterEmpresasDetalhes().find(e => e.id === clientId);
+      if (client && !targetCnpj) targetCnpj = client.cnpj;
+    }
+    const cleanCnpj = targetCnpj ? String(targetCnpj).replace(/\D/g, '') : '';
+    let notas = (cleanCnpj || clientId) ? db.obterNotasPorCliente(cleanCnpj, clientId) : db.obterNotas();
+    if ((!notas || notas.length === 0) && client) {
+      scanAndSaveClientNotes(client, cleanCnpj);
+      notas = db.obterNotasPorCliente(cleanCnpj, client.id);
+    }
     if (!notas || notas.length === 0) {
       return res.status(400).send('Nenhuma nota fiscal encontrada no banco de dados para exportar.');
     }
     const domConfig = db.obterConfigDominio();
     
     // Autodetecção da empresa vinculada no lote de notas
-    let codigoEmpresa = req.query.codigoEmpresa;
-    let cnpjEmpresa = req.query.cnpj || '';
+    let codigoEmpresa = req.query.codigoEmpresa || (client && (client.codigoDominio || client.codigo_dominio));
+    let cnpjEmpresa = cleanCnpj || '';
 
     if (!codigoEmpresa || !cnpjEmpresa) {
       for (const n of notas) {
@@ -553,14 +1042,26 @@ app.get('/api/notas/exportar-dominio', (req, res) => {
 // Endpoint: Exportar Fornecedores e Clientes no Layout 3 oficial do Domínio Sistemas
 app.get('/api/notas/exportar-dominio-participantes', (req, res) => {
   try {
-    const notas = db.obterNotas();
+    const { clientId, cnpj } = req.query;
+    let targetCnpj = cnpj;
+    let client = null;
+    if (clientId) {
+      client = (scanner.cache.clients || []).find(c => c.id === clientId) || db.obterEmpresasDetalhes().find(e => e.id === clientId);
+      if (client && !targetCnpj) targetCnpj = client.cnpj;
+    }
+    const cleanCnpj = targetCnpj ? String(targetCnpj).replace(/\D/g, '') : '';
+    let notas = (cleanCnpj || clientId) ? db.obterNotasPorCliente(cleanCnpj, clientId) : db.obterNotas();
+    if ((!notas || notas.length === 0) && client) {
+      scanAndSaveClientNotes(client, cleanCnpj);
+      notas = db.obterNotasPorCliente(cleanCnpj, client.id);
+    }
     if (!notas || notas.length === 0) {
       return res.status(400).send('Nenhuma nota fiscal encontrada no banco de dados para exportar fornecedores/clientes.');
     }
     const domConfig = db.obterConfigDominio();
     
     // Autodetecção da empresa vinculada no lote de notas
-    let codigoEmpresa = req.query.codigoEmpresa;
+    let codigoEmpresa = req.query.codigoEmpresa || (client && (client.codigoDominio || client.codigo_dominio));
     if (!codigoEmpresa) {
       for (const n of notas) {
         const docAlvo = (n.direcao === 'ENTRADA' ? n.destinatario?.cnpj : n.emitente?.cnpj);
@@ -620,10 +1121,13 @@ app.post('/api/dominio/manuais/abrir', express.json(), (req, res) => {
   if (!fs.existsSync(p)) {
     return res.status(404).json({ success: false, error: 'Manual não encontrado no disco.' });
   }
-  exec(`start "" "${p}"`, (err) => {
-    if (err) return res.status(500).json({ success: false, error: err.message });
+  try {
+    const child = spawn('cmd.exe', ['/c', 'start', '""', p], { detached: true, stdio: 'ignore' });
+    child.unref();
     res.json({ success: true, message: `Manual "${nome}" aberto com sucesso!` });
-  });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ============================================================
@@ -1091,19 +1595,8 @@ app.post('/api/clients/open', (req, res) => {
   console.log(`[Abrir Pasta] Abrindo no Windows Explorer: "${finalPath}"`);
 
   try {
-    // Método 1: PowerShell Invoke-Item com -LiteralPath (mais confiável no Windows para abrir na pasta exata sem problemas de '&' ou acentos)
-    const escaped = finalPath.replace(/'/g, "''");
-    exec(`powershell.exe -NoProfile -Command "Invoke-Item -LiteralPath '${escaped}'"`, (psErr) => {
-      if (psErr) {
-        // Fallback: spawn explorer.exe direto
-        try {
-          const child = spawn('explorer.exe', [finalPath], { detached: true, stdio: 'ignore' });
-          child.unref();
-        } catch (e) {
-          exec(`start "" "${finalPath}"`, { shell: 'cmd.exe' }, () => {});
-        }
-      }
-    });
+    const child = spawn('explorer.exe', [finalPath], { detached: true, stdio: 'ignore' });
+    child.unref();
 
     res.json({ 
       success: true, 

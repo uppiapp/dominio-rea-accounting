@@ -16,7 +16,7 @@ const parser = new XMLParser({
 });
 
 /**
- * Espelha o CFOP (Ex: 5102 Venda -> 1102 Compra)
+ * Espelha o CFOP para a ótica do destinatário/comprador (SEFAZ e Domínio Sistemas)
  * @param {string|number} cfopOrigem CFOP original
  * @returns {string} CFOP espelhado
  */
@@ -25,6 +25,44 @@ function espelharCFOP(cfopOrigem) {
     const cfopStr = String(cfopOrigem).replace(/\D/g, '');
     if (cfopStr.length !== 4) return cfopStr;
     
+    // Mapeamento especial de regras fiscais brasileiras (SEFAZ / Domínio Sistemas)
+    const mapaEspecial = {
+        '5401': '1403',
+        '5402': '1403',
+        '5403': '1403',
+        '5405': '1403', // Compra para comercialização com ST (1405 NÃO existe na SEFAZ)
+        '5408': '1403',
+        '5409': '1403',
+        '5410': '1403',
+        '5411': '1411', // Devolução
+        '6401': '2403',
+        '6402': '2403',
+        '6403': '2403',
+        '6404': '2403',
+        '6405': '2403', // Compra interestadual com ST (2405 NÃO existe na SEFAZ)
+        '6411': '2411',
+        '5101': '1101',
+        '5102': '1102',
+        '6101': '2101',
+        '6102': '2102',
+        '5551': '1551',
+        '6551': '2551',
+        '5556': '1556',
+        '6556': '2556',
+        '5201': '1201',
+        '5202': '1202',
+        '6201': '2201',
+        '6202': '2202',
+        '5949': '1949',
+        '6949': '2949',
+        '5910': '1910',
+        '6910': '2910'
+    };
+
+    if (mapaEspecial[cfopStr]) {
+        return mapaEspecial[cfopStr];
+    }
+
     const primeiroDigito = cfopStr[0];
     let novoPrimeiroDigito = primeiroDigito;
     
@@ -33,7 +71,10 @@ function espelharCFOP(cfopOrigem) {
     else if (primeiroDigito === '6') novoPrimeiroDigito = '2';
     else if (primeiroDigito === '7') novoPrimeiroDigito = '3';
     
-    return novoPrimeiroDigito + cfopStr.substring(1);
+    let resultado = novoPrimeiroDigito + cfopStr.substring(1);
+    if (resultado === '1405') resultado = '1403';
+    if (resultado === '2405') resultado = '2403';
+    return resultado;
 }
 
 /**
@@ -43,7 +84,10 @@ function espelharCFOP(cfopOrigem) {
  */
 function parseNFeXML(xmlString) {
     try {
-        const jsonObj = parser.parse(xmlString);
+        if (!xmlString) return null;
+        // Remove BOM se presente
+        const cleanXml = typeof xmlString === 'string' ? xmlString.replace(/^\uFEFF/, '') : xmlString;
+        const jsonObj = parser.parse(cleanXml);
         
         // Identificar o tipo de documento
         let tipo = 'DESCONHECIDO';
@@ -57,8 +101,7 @@ function parseNFeXML(xmlString) {
             dadosNFe = jsonObj.NFe.infNFe;
         } else if (jsonObj.CompNfse || jsonObj.ConsultarNfseResposta) {
             tipo = 'NFSE';
-            // Simplificação para NFS-e
-            dadosNFe = (jsonObj.CompNfse?.Nfse?.InfNfse) || {}; 
+            dadosNFe = (jsonObj.CompNfse?.Nfse?.InfNfse) || (jsonObj.ConsultarNfseResposta?.ListaNfse?.CompNfse?.Nfse?.InfNfse) || {}; 
         } else if (jsonObj.cteProc || jsonObj.CTe) {
             tipo = 'CTE';
             dadosNFe = (jsonObj.cteProc?.CTe?.infCte) || jsonObj.CTe?.infCte || {};
@@ -74,6 +117,7 @@ function parseNFeXML(xmlString) {
             const emit = dadosNFe.emit || {};
             const dest = dadosNFe.dest || {};
             const total = dadosNFe.total?.ICMSTot || {};
+            const tpNF = ide.tpNF !== undefined ? String(ide.tpNF) : undefined;
             let det = dadosNFe.det || [];
             if (!Array.isArray(det)) det = [det];
             
@@ -110,9 +154,15 @@ function parseNFeXML(xmlString) {
                 };
             });
 
+            let chave = dadosNFe.Id ? String(dadosNFe.Id).replace(/^(NFe|CTe|nfe)/i, '') : '';
+            if (!chave && jsonObj.nfeProc?.protNFe?.infProt?.chNFe) {
+                chave = String(jsonObj.nfeProc.protNFe.infProt.chNFe);
+            }
+
             return {
                 tipo,
-                chave: dadosNFe.Id ? dadosNFe.Id.replace('NFe', '') : '',
+                tpNF,
+                chave,
                 numero: ide.nNF,
                 serie: ide.serie,
                 dataEmissao: ide.dhEmi || ide.dEmi,
@@ -124,6 +174,12 @@ function parseNFeXML(xmlString) {
                     nomeFantasia: emit.xFant,
                     uf: emit.enderEmit?.UF,
                     cidade: emit.enderEmit?.xMun,
+                    cidadeIbge: emit.enderEmit?.cMun ? String(emit.enderEmit.cMun) : undefined,
+                    logradouro: emit.enderEmit?.xLgr || emit.enderEmit?.endereco,
+                    numero: emit.enderEmit?.nro,
+                    bairro: emit.enderEmit?.xBairro,
+                    cep: emit.enderEmit?.CEP ? String(emit.enderEmit.CEP).replace(/\D/g, '') : undefined,
+                    telefone: emit.enderEmit?.fone ? String(emit.enderEmit.fone) : undefined,
                     ie: emit.IE
                 },
                 destinatario: {
@@ -133,6 +189,12 @@ function parseNFeXML(xmlString) {
                     nomeFantasia: dest.xFant,
                     uf: dest.enderDest?.UF,
                     cidade: dest.enderDest?.xMun,
+                    cidadeIbge: dest.enderDest?.cMun ? String(dest.enderDest.cMun) : undefined,
+                    logradouro: dest.enderDest?.xLgr || dest.enderDest?.endereco,
+                    numero: dest.enderDest?.nro,
+                    bairro: dest.enderDest?.xBairro,
+                    cep: dest.enderDest?.CEP ? String(dest.enderDest.CEP).replace(/\D/g, '') : undefined,
+                    telefone: dest.enderDest?.fone ? String(dest.enderDest.fone) : undefined,
                     ie: dest.IE
                 },
                 produtos,
@@ -151,8 +213,109 @@ function parseNFeXML(xmlString) {
                 },
                 informacoesAdicionais: dadosNFe.infAdic?.infCpl || ''
             };
+        } else if (tipo === 'CTE') {
+            const ide = dadosNFe.ide || {};
+            const emit = dadosNFe.emit || {};
+            const dest = dadosNFe.dest || dadosNFe.rem || {};
+            const vPrest = dadosNFe.vPrest || {};
+            const vTPrest = parseFloat(vPrest.vTPrest || dadosNFe.vTPrest || 0) || 0;
+            const chave = dadosNFe.Id ? String(dadosNFe.Id).replace(/^(CTe|cte)/i, '') : (jsonObj.cteProc?.protCTe?.infProt?.chCTe || '');
+
+            return {
+                tipo,
+                tpNF: '0', // CT-e tomado é entrada de serviço de transporte
+                chave,
+                numero: ide.nCT || dadosNFe.Numero || '',
+                serie: ide.serie || '1',
+                dataEmissao: ide.dhEmi || ide.dEmi,
+                valorTotal: vTPrest,
+                emitente: {
+                    cnpj: emit.CNPJ,
+                    cpf: emit.CPF,
+                    razaoSocial: emit.xNome,
+                    nomeFantasia: emit.xFant,
+                    uf: emit.enderEmit?.UF,
+                    cidade: emit.enderEmit?.xMun,
+                    cidadeIbge: emit.enderEmit?.cMun ? String(emit.enderEmit.cMun) : undefined,
+                    logradouro: emit.enderEmit?.xLgr,
+                    numero: emit.enderEmit?.nro,
+                    bairro: emit.enderEmit?.xBairro,
+                    cep: emit.enderEmit?.CEP ? String(emit.enderEmit.CEP).replace(/\D/g, '') : undefined,
+                    telefone: emit.enderEmit?.fone,
+                    ie: emit.IE
+                },
+                destinatario: {
+                    cnpj: dest.CNPJ,
+                    cpf: dest.CPF,
+                    razaoSocial: dest.xNome,
+                    nomeFantasia: dest.xFant,
+                    uf: dest.enderDest?.UF || dest.enderReme?.UF,
+                    cidade: dest.enderDest?.xMun || dest.enderReme?.xMun,
+                    cidadeIbge: (dest.enderDest?.cMun || dest.enderReme?.cMun) ? String(dest.enderDest?.cMun || dest.enderReme?.cMun) : undefined,
+                    logradouro: dest.enderDest?.xLgr || dest.enderReme?.xLgr,
+                    numero: dest.enderDest?.nro || dest.enderReme?.nro,
+                    bairro: dest.enderDest?.xBairro || dest.enderReme?.xBairro,
+                    cep: (dest.enderDest?.CEP || dest.enderReme?.CEP) ? String(dest.enderDest?.CEP || dest.enderReme?.CEP).replace(/\D/g, '') : undefined,
+                    telefone: dest.enderDest?.fone || dest.enderReme?.fone,
+                    ie: dest.IE
+                },
+                produtos: [],
+                totais: {
+                    baseCalculoICMS: parseFloat(vPrest.Comp?.find?.(c => c.xNome === 'ICMS')?.vComp || 0),
+                    valorICMS: 0,
+                    valorProdutos: vTPrest,
+                    valorNota: vTPrest
+                },
+                informacoesAdicionais: dadosNFe.compl?.xObs || ''
+            };
+        } else if (tipo === 'NFSE') {
+            const vServ = parseFloat(dadosNFe.ValoresNfse?.ValorServicos || dadosNFe.Servico?.Valores?.ValorServicos || dadosNFe.ValorServicos || 0) || 0;
+            const prest = dadosNFe.PrestadorServico || dadosNFe.Prestador || {};
+            const prestId = prest.IdentificacaoPrestador || {};
+            const tomad = dadosNFe.TomadorServico || dadosNFe.Tomador || {};
+            const tomadId = tomad.IdentificacaoTomador || {};
+
+            return {
+                tipo,
+                tpNF: '0',
+                chave: dadosNFe.Id || dadosNFe.Numero || '',
+                numero: dadosNFe.Numero || dadosNFe.IdentificacaoNfse?.Numero || '',
+                serie: dadosNFe.Serie || '1',
+                dataEmissao: dadosNFe.DataEmissao || dadosNFe.DataEmissaoRps,
+                valorTotal: vServ,
+                emitente: {
+                    cnpj: prestId.CpfCnpj?.Cnpj || prestId.Cnpj || prest.Cnpj,
+                    cpf: prestId.CpfCnpj?.Cpf || prestId.Cpf,
+                    razaoSocial: prest.RazaoSocial || prest.NomeFantasia,
+                    uf: prest.Endereco?.Uf,
+                    cidade: prest.Endereco?.Cidade,
+                    cidadeIbge: prest.Endereco?.CodigoMunicipio ? String(prest.Endereco.CodigoMunicipio) : undefined,
+                    logradouro: prest.Endereco?.Endereco,
+                    numero: prest.Endereco?.Numero,
+                    bairro: prest.Endereco?.Bairro,
+                    cep: prest.Endereco?.Cep ? String(prest.Endereco.Cep).replace(/\D/g, '') : undefined
+                },
+                destinatario: {
+                    cnpj: tomadId.CpfCnpj?.Cnpj || tomadId.Cnpj || tomad.Cnpj,
+                    cpf: tomadId.CpfCnpj?.Cpf || tomadId.Cpf,
+                    razaoSocial: tomad.RazaoSocial,
+                    uf: tomad.Endereco?.Uf,
+                    cidade: tomad.Endereco?.Cidade,
+                    cidadeIbge: tomad.Endereco?.CodigoMunicipio ? String(tomad.Endereco.CodigoMunicipio) : undefined,
+                    logradouro: tomad.Endereco?.Endereco,
+                    numero: tomad.Endereco?.Numero,
+                    bairro: tomad.Endereco?.Bairro,
+                    cep: tomad.Endereco?.Cep ? String(tomad.Endereco.Cep).replace(/\D/g, '') : undefined
+                },
+                produtos: [],
+                totais: {
+                    valorNota: vServ,
+                    valorServicos: vServ,
+                    valorISS: parseFloat(dadosNFe.ValoresNfse?.ValorIss || dadosNFe.Servico?.Valores?.ValorIss || 0)
+                },
+                informacoesAdicionais: dadosNFe.OutrasInformacoes || ''
+            };
         } else {
-            // Retorno genérico para NFS-e e CT-e (simplificado)
             return {
                 tipo,
                 chave: dadosNFe.Id || '',

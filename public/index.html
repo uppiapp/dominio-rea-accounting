@@ -274,6 +274,91 @@
             </div>
           </div>
 
+          <!-- =================================================================== -->
+          <!-- COCKPIT DE AUTOMAÇÃO 1-CLIQUE ("BOTÕES QUE FAZ TUDO") -->
+          <!-- =================================================================== -->
+          <div class="monet-card p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-[24px] shadow-xl border border-indigo-500/20 relative overflow-hidden">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+              <div class="flex items-center gap-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/30 shrink-0">
+                  <i data-lucide="zap" class="w-6 h-6 fill-current text-slate-950"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <h2 class="text-base sm:text-lg font-black tracking-tight text-white">Cockpit de Automação 1-Clique</h2>
+                    <span class="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-extrabold uppercase tracking-wider border border-amber-400/30">Motor Ultra-Rápido</span>
+                    <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">Layouts 19 & 3 Domínio</span>
+                  </div>
+                  <p class="text-xs text-slate-300 mt-0.5">Varre XMLs da rede, apura faturamento, calcula Simples Nacional/DAS e gera o pacote completo do Domínio Sistemas em 1 clique.</p>
+                </div>
+              </div>
+
+              <!-- Controles Rápidos do Cockpit (Empresa + Competência Mês/Ano/Datas) -->
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <!-- Seletor de Empresa -->
+                <div class="min-w-[210px] max-w-xs flex-1">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-amber-300 mb-1">Empresa</label>
+                  <select id="cockpitClientSelect" class="w-full bg-slate-800/90 text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#84CC16]">
+                    <option value="">⚡ Selecione uma Empresa...</option>
+                  </select>
+                </div>
+
+                <!-- Seletor de Mês -->
+                <div class="w-36">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Mês (Competência)</label>
+                  <select id="cockpitMonthSelect" onchange="handleCockpitPeriodChange('cockpit')" class="w-full bg-slate-800/90 text-white text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#84CC16]">
+                    <option value="09" selected>09 - Setembro</option>
+                    <option value="10">10 - Outubro</option>
+                    <option value="08">08 - Agosto</option>
+                    <option value="07">07 - Julho</option>
+                    <option value="06">06 - Junho</option>
+                    <option value="05">05 - Maio</option>
+                    <option value="04">04 - Abril</option>
+                    <option value="03">03 - Março</option>
+                    <option value="02">02 - Fevereiro</option>
+                    <option value="01">01 - Janeiro</option>
+                    <option value="11">11 - Novembro</option>
+                    <option value="12">12 - Dezembro</option>
+                    <option value="TODAS">TODAS (Geral)</option>
+                  </select>
+                </div>
+
+                <!-- Seletor de Ano -->
+                <div class="w-24">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Ano</label>
+                  <select id="cockpitYearSelect" onchange="handleCockpitPeriodChange('cockpit')" class="w-full bg-slate-800/90 text-white text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#84CC16]">
+                    <option value="2026" selected>2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                  </select>
+                </div>
+
+                <!-- Badge Informativo de Datas / Vencimento -->
+                <div class="hidden sm:flex flex-col justify-end">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Período & Vencimento</label>
+                  <div class="px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/80 text-[11px] text-slate-300 flex items-center gap-2">
+                    <span id="cockpitPeriodoBadge" class="font-mono text-emerald-400 font-bold">01/09 a 30/09</span>
+                    <span class="text-slate-500">·</span>
+                    <span class="text-amber-300 font-semibold">DAS: <strong id="cockpitVencDASBadge" class="font-mono text-white">20/10/2026</strong></span>
+                  </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex items-end gap-2 pt-4 sm:pt-0">
+                  <button onclick="executarFechamentoCockpit('cockpitClientSelect', 'cockpitMonthSelect', 'cockpitYearSelect')" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-amber-500/25 transition flex items-center gap-2" title="Executar apuração fiscal completa e cálculo do Simples Nacional/DAS na competência selecionada">
+                    <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
+                    <span>Fechamento Fiscal 1-Clique</span>
+                  </button>
+                  <button onclick="baixarPacoteCockpit('cockpitClientSelect', 'cockpitMonthSelect', 'cockpitYearSelect')" class="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/10 transition flex items-center gap-2" title="Baixar Pacote de Importação do Domínio Sistemas (ZIP)">
+                    <i data-lucide="package" class="w-4 h-4 text-emerald-400"></i>
+                    <span>Baixar Pacote Domínio</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Grid Principal do Dashboard (70% Esquerda + 30% Direita) -->
           <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             
@@ -1637,6 +1722,89 @@
                   <i data-lucide="download" class="w-4 h-4"></i>
                   <span>Exportar Excel</span>
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- =================================================================== -->
+          <!-- COCKPIT DE AUTOMAÇÃO FISCAL 1-CLIQUE -->
+          <!-- =================================================================== -->
+          <div class="monet-card p-4 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 text-white rounded-[24px] shadow-lg border border-emerald-500/20">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-amber-500/20 shrink-0">
+                  <i data-lucide="zap" class="w-5 h-5 fill-current"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                    Automação Fiscal 1-Clique do Cliente
+                    <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">Apuração + DAS + Domínio</span>
+                  </h3>
+                  <p class="text-xs text-slate-300 mt-0.5">Executa o fechamento fiscal contábil instantâneo para a empresa selecionada.</p>
+                </div>
+              </div>
+              <!-- Controles Rápidos do Cockpit Fiscal (Empresa + Competência) -->
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <!-- Seletor de Empresa -->
+                <div class="min-w-[210px] max-w-xs flex-1">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-amber-300 mb-1">Empresa</label>
+                  <select id="cockpitClientSelectFiscal" class="w-full bg-slate-800/90 text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#84CC16]">
+                    <option value="">⚡ Selecione uma Empresa...</option>
+                  </select>
+                </div>
+
+                <!-- Seletor de Mês -->
+                <div class="w-36">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Mês (Competência)</label>
+                  <select id="cockpitMonthSelectFiscal" onchange="handleCockpitPeriodChange('fiscal')" class="w-full bg-slate-800/90 text-white text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#84CC16]">
+                    <option value="09" selected>09 - Setembro</option>
+                    <option value="10">10 - Outubro</option>
+                    <option value="08">08 - Agosto</option>
+                    <option value="07">07 - Julho</option>
+                    <option value="06">06 - Junho</option>
+                    <option value="05">05 - Maio</option>
+                    <option value="04">04 - Abril</option>
+                    <option value="03">03 - Março</option>
+                    <option value="02">02 - Fevereiro</option>
+                    <option value="01">01 - Janeiro</option>
+                    <option value="11">11 - Novembro</option>
+                    <option value="12">12 - Dezembro</option>
+                    <option value="TODAS">TODAS (Geral)</option>
+                  </select>
+                </div>
+
+                <!-- Seletor de Ano -->
+                <div class="w-24">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Ano</label>
+                  <select id="cockpitYearSelectFiscal" onchange="handleCockpitPeriodChange('fiscal')" class="w-full bg-slate-800/90 text-white text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#84CC16]">
+                    <option value="2026" selected>2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                  </select>
+                </div>
+
+                <!-- Badge Informativo de Datas / Vencimento -->
+                <div class="hidden sm:flex flex-col justify-end">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Período & Vencimento</label>
+                  <div class="px-3 py-2 rounded-xl bg-slate-800/60 border border-slate-700/80 text-[11px] text-slate-300 flex items-center gap-2">
+                    <span id="cockpitPeriodoBadgeFiscal" class="font-mono text-emerald-400 font-bold">01/09 a 30/09</span>
+                    <span class="text-slate-500">·</span>
+                    <span class="text-amber-300 font-semibold">DAS: <strong id="cockpitVencDASBadgeFiscal" class="font-mono text-white">20/10/2026</strong></span>
+                  </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex items-end gap-2 pt-4 sm:pt-0">
+                  <button onclick="executarFechamentoCockpit('cockpitClientSelectFiscal', 'cockpitMonthSelectFiscal', 'cockpitYearSelectFiscal')" class="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-extrabold rounded-xl shadow-md transition flex items-center gap-1.5" title="Executar apuração fiscal completa e cálculo do Simples Nacional/DAS na competência selecionada">
+                    <i data-lucide="zap" class="w-3.5 h-3.5 fill-current"></i>
+                    <span>Fechamento Fiscal 1-Clique</span>
+                  </button>
+                  <button onclick="baixarPacoteCockpit('cockpitClientSelectFiscal', 'cockpitMonthSelectFiscal', 'cockpitYearSelectFiscal')" class="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/10 transition flex items-center gap-1.5" title="Baixar Pacote de Importação do Domínio Sistemas (ZIP)">
+                    <i data-lucide="package" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>Baixar Pacote Domínio</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -3185,6 +3353,380 @@
           <i data-lucide="check-circle" class="w-4 h-4"></i>
           <span>Conectar e Salvar Padrão</span>
         </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL DE FECHAMENTO FISCAL 1-CLIQUE ("BOTÕES QUE FAZ TUDO") -->
+  <!-- ========================================================================= -->
+  <!-- =================================================================== -->
+  <!-- MODAL DE APURAÇÃO FISCAL MENSAL & DAS (PADRÃO DOMÍNIO SISTEMAS) -->
+  <!-- =================================================================== -->
+  <div id="modalFechamento1Clique" class="hidden fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-[28px] max-w-5xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200/90 max-h-[94vh] overflow-y-auto space-y-5 animate-fade-in relative flex flex-col justify-between">
+      
+      <!-- Cabeçalho Executivo do Fechamento -->
+      <div class="flex items-start justify-between border-b border-slate-100 pb-4">
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/25 shrink-0">
+            <i data-lucide="zap" class="w-6 h-6 fill-current"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight" id="fechamentoModalNome">Empresa</h3>
+              <span id="fechamentoModalRegime" class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase tracking-wide">SIMPLES_NACIONAL</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-bold">Domínio Interop</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
+              <span>CNPJ: <strong id="fechamentoModalCnpj" class="font-mono text-slate-800 font-bold">-</strong></span>
+              <span>Código Domínio: <strong id="fechamentoModalCodDom" class="font-mono text-slate-800 font-bold">0001</strong></span>
+              <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-semibold">Competência: <strong id="fechamentoModalCompetencia">-</strong></span>
+              <span class="text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md font-semibold">Vencimento DAS: <strong id="fechamentoModalVencDAS">-</strong></span>
+            </div>
+          </div>
+        </div>
+        <button onclick="fecharModalFechamento1Clique()" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Barra de Controle e Ajuste da Competência (Mês / Ano / Anexo / RBT12) -->
+      <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-end gap-3 text-xs">
+        <div class="flex-1 min-w-[130px]">
+          <label class="block font-bold text-slate-600 text-[10px] uppercase mb-1">Mês de Competência</label>
+          <select id="fechamentoModalMonth" class="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-lime-500">
+            <option value="09">09 - Setembro</option>
+            <option value="10">10 - Outubro</option>
+            <option value="08">08 - Agosto</option>
+            <option value="07">07 - Julho</option>
+            <option value="06">06 - Junho</option>
+            <option value="05">05 - Maio</option>
+            <option value="04">04 - Abril</option>
+            <option value="03">03 - Março</option>
+            <option value="02">02 - Fevereiro</option>
+            <option value="01">01 - Janeiro</option>
+            <option value="11">11 - Novembro</option>
+            <option value="12">12 - Dezembro</option>
+            <option value="TODAS">TODAS (Geral)</option>
+          </select>
+        </div>
+
+        <div class="w-24">
+          <label class="block font-bold text-slate-600 text-[10px] uppercase mb-1">Ano</label>
+          <select id="fechamentoModalYear" class="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-lime-500">
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+          </select>
+        </div>
+
+        <div class="flex-1 min-w-[170px]">
+          <label class="block font-bold text-slate-600 text-[10px] uppercase mb-1">Tabela Simples Nacional</label>
+          <select id="fechamentoModalAnexo" class="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-lime-500">
+            <option value="1">Anexo I - Comércio</option>
+            <option value="2">Anexo II - Indústria</option>
+            <option value="3">Anexo III - Serviços</option>
+            <option value="4">Anexo IV - Serviços Esp.</option>
+            <option value="5">Anexo V - Serviços Fator R</option>
+          </select>
+        </div>
+
+        <div class="w-36">
+          <label class="block font-bold text-slate-600 text-[10px] uppercase mb-1">RBT12 (12 Meses)</label>
+          <input type="text" id="fechamentoModalRbt12" value="R$ 360.000,00" class="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 font-bold font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-lime-500">
+        </div>
+
+        <div>
+          <button onclick="recalcularFechamentoModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            <span>Recalcular</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Abas de Navegação Interna do Fechamento -->
+      <div class="flex items-center gap-2 border-b border-slate-200">
+        <button id="tabBtnFechamento_resumo" onclick="switchFechamentoModalTab('resumo')" class="px-4 py-2 font-bold text-xs rounded-xl bg-lime-500/20 text-lime-900 border border-lime-400/30 transition flex items-center gap-1.5">
+          <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+          <span>1. Apuração Mensal & DAS</span>
+        </button>
+        <button id="tabBtnFechamento_notas" onclick="switchFechamentoModalTab('notas')" class="px-4 py-2 font-semibold text-xs rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition flex items-center gap-1.5">
+          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+          <span>2. Extrato das Notas da Competência (<span id="fechamentoModalTabCountNotas">0</span>)</span>
+        </button>
+        <button id="tabBtnFechamento_dominio" onclick="switchFechamentoModalTab('dominio')" class="px-4 py-2 font-semibold text-xs rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition flex items-center gap-1.5">
+          <i data-lucide="package" class="w-3.5 h-3.5"></i>
+          <span>3. Pacote Domínio & Como Importar</span>
+        </button>
+      </div>
+
+      <!-- ABA 1: APURAÇÃO MENSAL & DAS -->
+      <div id="tabContentFechamento_resumo" class="space-y-4">
+        
+        <!-- Grid de 4 Cards Oficiais -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <!-- Card Faturamento (Saídas) -->
+          <div class="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/80">
+            <div class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 flex items-center justify-between">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
+                <span>Receita do Mês (Saídas)</span>
+              </span>
+              <span class="font-mono text-[9px] px-1.5 py-0.5 rounded bg-emerald-200/60 text-emerald-950 font-bold">Base DAS</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black text-emerald-950 mt-1.5" id="fechamentoModalFaturamento">R$ 0,00</div>
+            <div class="text-[10px] text-emerald-700 mt-1 font-medium" id="fechamentoModalFaturamentoSub">0 notas emitidas</div>
+          </div>
+
+          <!-- Card Compras (Entradas) -->
+          <div class="p-4 rounded-2xl bg-sky-50/80 border border-sky-200/80">
+            <div class="text-[10px] font-extrabold uppercase tracking-wider text-sky-800 flex items-center justify-between">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>
+                <span>Total de Compras</span>
+              </span>
+              <span class="font-mono text-[9px] px-1.5 py-0.5 rounded bg-sky-200/60 text-sky-950 font-bold">Entradas</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black text-sky-950 mt-1.5" id="fechamentoModalCompras">R$ 0,00</div>
+            <div class="text-[10px] text-sky-700 mt-1 font-medium" id="fechamentoModalComprasSub">0 notas de compras</div>
+          </div>
+
+          <!-- Card Alíquota Efetiva -->
+          <div class="p-4 rounded-2xl bg-purple-50/80 border border-purple-200/80">
+            <div class="text-[10px] font-extrabold uppercase tracking-wider text-purple-800 flex items-center justify-between">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="percent" class="w-3.5 h-3.5"></i>
+                <span>Alíquota Efetiva</span>
+              </span>
+              <span class="font-mono text-[9px] px-1.5 py-0.5 rounded bg-purple-200/60 text-purple-950 font-bold">Faixa 2</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black text-purple-950 mt-1.5" id="fechamentoModalAliquota">4.00%</div>
+            <div class="text-[10px] text-purple-700 mt-1 font-medium">Alíquota apurada (LC 123)</div>
+          </div>
+
+          <!-- Card DAS a Recolher -->
+          <div class="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-400/20 to-amber-500/10 border-2 border-amber-300 shadow-sm">
+            <div class="text-[10px] font-black uppercase tracking-wider text-amber-900 flex items-center justify-between">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="calculator" class="w-3.5 h-3.5 text-amber-700"></i>
+                <span>Guia DAS a Pagar</span>
+              </span>
+              <span class="font-mono text-[9px] px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black">Venc. 20</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black text-amber-950 mt-1.5" id="fechamentoModalDAS">R$ 0,00</div>
+            <div class="text-[10px] text-amber-800 mt-1 font-bold">Vencimento: <span id="fechamentoModalDASDataVenc" class="font-mono">20/10/2026</span></div>
+          </div>
+        </div>
+
+        <!-- Segregação Fiscal: Vendas ST vs Tributadas e Compras por Finalidade -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Quadro Saídas (Vendas) -->
+          <div class="p-4 rounded-2xl bg-white border border-slate-200 space-y-2.5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+                <span>Segregação de Receitas de Saídas</span>
+              </span>
+              <span class="text-[10px] font-bold text-slate-400">CFOPs 5.102 / 5.405</span>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center justify-between p-2 rounded-xl bg-amber-50/60 border border-amber-100">
+                <div>
+                  <span class="font-bold text-amber-950 block">Com ICMS ST / Monofásico (CFOP 5.405)</span>
+                  <span class="text-[10px] text-amber-700 font-medium" id="fechamentoModalSaidasSTQtd">0 notas</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-mono font-bold text-amber-900" id="fechamentoModalSaidasST">R$ 0,00</span>
+                  <span class="text-[9px] text-emerald-700 block font-semibold">ICMS isento no DAS</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                <div>
+                  <span class="font-bold text-slate-800 block">Tributado Integralmente (CFOP 5.102)</span>
+                  <span class="text-[10px] text-slate-500 font-medium" id="fechamentoModalSaidasTribQtd">0 notas</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-mono font-bold text-slate-800" id="fechamentoModalSaidasTrib">R$ 0,00</span>
+                  <span class="text-[9px] text-slate-500 block font-medium">Tributação normal</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quadro Entradas (Compras) -->
+          <div class="p-4 rounded-2xl bg-white border border-slate-200 space-y-2.5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <i data-lucide="shopping-bag" class="w-3.5 h-3.5 text-sky-600"></i>
+                <span>Classificação das Entradas por Finalidade</span>
+              </span>
+              <span class="text-[10px] font-bold text-slate-400">CFOPs 1.102 / 1.556</span>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="flex items-center justify-between p-2 rounded-xl bg-sky-50/60 border border-sky-100">
+                <div>
+                  <span class="font-bold text-sky-950 block">Revenda / Comercialização (CFOP 1.102/1.403)</span>
+                  <span class="text-[10px] text-sky-700 font-medium" id="fechamentoModalComprasComercialQtd">0 notas</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-mono font-bold text-sky-900" id="fechamentoModalComprasComercial">R$ 0,00</span>
+                  <span class="text-[9px] text-sky-700 block font-medium">Acumulador 1</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                <div>
+                  <span class="font-bold text-slate-800 block">Uso e Consumo (CFOP 1.556 / 2.556)</span>
+                  <span class="text-[10px] text-slate-500 font-medium" id="fechamentoModalComprasUsoConsumoQtd">0 notas</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-mono font-bold text-slate-800" id="fechamentoModalComprasUsoConsumo">R$ 0,00</span>
+                  <span class="text-[9px] text-slate-500 block font-medium">Acumulador 2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Impostos Destacados nos Documentos Fiscais -->
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Impostos Destacados nos XMLs do Período</div>
+          <div class="grid grid-cols-3 gap-3 text-xs">
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200">
+              <span class="text-[10px] font-bold text-slate-400 uppercase block">ICMS Destacado</span>
+              <span class="font-mono font-bold text-slate-800 text-sm" id="fechamentoModalIcms">R$ 0,00</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200">
+              <span class="text-[10px] font-bold text-slate-400 uppercase block">PIS Destacado</span>
+              <span class="font-mono font-bold text-slate-800 text-sm" id="fechamentoModalPis">R$ 0,00</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-white border border-slate-200">
+              <span class="text-[10px] font-bold text-slate-400 uppercase block">COFINS Destacado</span>
+              <span class="font-mono font-bold text-slate-800 text-sm" id="fechamentoModalCofins">R$ 0,00</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ABA 2: EXTRATO DE NOTAS DA COMPETÊNCIA (TABELA DE CONFERÊNCIA) -->
+      <div id="tabContentFechamento_notas" class="hidden space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <div class="relative flex-1 max-w-sm">
+            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400"></i>
+            <input type="text" oninput="filtrarNotasFechamentoModal(this.value)" placeholder="Buscar por número, fornecedor, CNPJ ou CFOP..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-lime-500">
+          </div>
+          <span id="fechamentoModalBadgeFiltradas" class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold font-mono">0 notas</span>
+        </div>
+
+        <div class="overflow-x-auto max-h-[50vh] border border-slate-200 rounded-2xl">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] tracking-wider sticky top-0 z-10">
+              <tr>
+                <th class="p-2.5">Operação</th>
+                <th class="p-2.5">Nº / Série</th>
+                <th class="p-2.5">Emissão</th>
+                <th class="p-2.5">CFOP Domínio</th>
+                <th class="p-2.5">Fornecedor / Destinatário</th>
+                <th class="p-2.5">CNPJ / CPF</th>
+                <th class="p-2.5 text-right">Valor Total</th>
+                <th class="p-2.5 text-right">ICMS</th>
+                <th class="p-2.5 text-right">PIS/COF</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyFechamentoNotasModal" class="divide-y divide-slate-100 font-medium">
+              <tr>
+                <td colspan="9" class="p-6 text-center text-slate-400">Nenhuma nota para exibir nesta competência.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA 3: PACOTE DOMÍNIO & COMO IMPORTAR -->
+      <div id="tabContentFechamento_dominio" class="hidden space-y-4">
+        <!-- Status dos Arquivos Oficiais -->
+        <div class="p-4 rounded-2xl bg-slate-900 text-white space-y-3">
+          <div class="text-xs font-extrabold text-[#84CC16] flex items-center gap-2 uppercase tracking-wider">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            <span>Arquivos Prontos para o Domínio Sistemas (Thomson Reuters)</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
+            <div class="p-2 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <div>
+                <strong>01_NOTAS_ENTRADAS_LAYOUT19.TXT</strong>: <span id="fechamentoModalLinhas19Ent">0 linhas</span>
+                <span class="block text-[10px] text-slate-400">Layout 19 Tipo 02 (Entradas)</span>
+              </div>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <div>
+                <strong>01_NOTAS_SAIDAS_LAYOUT19.TXT</strong>: <span id="fechamentoModalLinhas19Sai">0 linhas</span>
+                <span class="block text-[10px] text-slate-400">Layout 19 Tipo 03 (Saídas)</span>
+              </div>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+              <div>
+                <strong>02_PARTICIPANTES_LAYOUT3.TXT</strong>: <span id="fechamentoModalLinhas3">0 linhas</span>
+                <span class="block text-[10px] text-slate-400">Layout 3 Oficial (IBGE 7 dígitos)</span>
+              </div>
+            </div>
+            <div class="p-2 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
+              <div>
+                <strong>03_PARTIDAS_DOBRADAS_CONTABIL.TXT</strong>: Gerado
+                <span class="block text-[10px] text-slate-400">Lançamentos Contábeis de Débito/Crédito</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo a Passo Ilustrado de Como Importar no Domínio Sistemas -->
+        <div class="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-950 space-y-2">
+          <div class="font-extrabold text-sm flex items-center gap-2 text-amber-900">
+            <i data-lucide="help-circle" class="w-4 h-4 text-amber-600"></i>
+            <span>Como Importar no Domínio Sistemas Manualmente (Passo a Passo)</span>
+          </div>
+          <ol class="list-decimal list-inside space-y-1.5 pl-1 leading-relaxed">
+            <li><strong>Baixe o Pacote ZIP</strong> clicando no botão verde abaixo e extraia os arquivos.</li>
+            <li>No <strong>Domínio Escrita Fiscal</strong>, abra a empresa correspondente e vá no menu:
+              <br><code class="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-[11px]">Utilitários &gt; Importação &gt; Importador &gt; Layout Domínio Sistemas</code>.
+            </li>
+            <li>Importe primeiro os Participantes selecionando o arquivo <code class="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">02_PARTICIPANTES_LAYOUT3.TXT</code> no Layout 3.</li>
+            <li>Em seguida, importe as Notas Fiscais no Layout 19: selecione <code class="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">01_NOTAS_ENTRADAS_LAYOUT19.TXT</code> para Entradas e <code class="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">01_NOTAS_SAIDAS_LAYOUT19.TXT</code> para Saídas.</li>
+            <li>No <strong>Domínio Contábil</strong>, acesse <code class="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-[11px]">Utilitários &gt; Importação &gt; Importar Lançamentos Contábeis</code> e selecione <code class="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">03_PARTIDAS_DOBRADAS_CONTABIL.TXT</code>.</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- Rodapé de Ações do Modal -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <button id="btnFechamentoIrFiscal" class="px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5">
+            <i data-lucide="file-text" class="w-4 h-4 text-emerald-600"></i>
+            <span>Ver Notas no Fiscal</span>
+          </button>
+          <button id="btnFechamentoAbrirPasta" class="px-3.5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition flex items-center gap-1.5">
+            <i data-lucide="folder" class="w-4 h-4 text-lime-700"></i>
+            <span>Abrir Pasta da Empresa</span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button onclick="fecharModalFechamento1Clique()" class="px-4 py-2.5 rounded-xl text-slate-500 hover:bg-slate-100 text-xs font-semibold transition">
+            Fechar
+          </button>
+          <button id="btnFechamentoDownloadZip" class="btn-monet-lime px-5 py-2.5 text-xs font-black shadow-lg shadow-lime-500/25 flex items-center gap-2">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Baixar Pacote Domínio Sistemas (ZIP)</span>
+          </button>
+        </div>
       </div>
 
     </div>

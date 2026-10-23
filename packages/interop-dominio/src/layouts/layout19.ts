@@ -57,7 +57,10 @@ export const padNum = (val: string | number, size: number): string => {
 };
 
 export const padAlpha = (val: string | undefined | null, size: number): string => {
-  return String(val ?? '').slice(0, size).padEnd(size, ' ');
+  const clean = String(val ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return clean.slice(0, size).padEnd(size, ' ');
 };
 
 export const padMoney = (val: number, size = 13): string => {

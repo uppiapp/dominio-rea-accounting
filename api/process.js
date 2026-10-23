@@ -22,16 +22,82 @@ module.exports = async (req, res) => {
 
   try {
     const body = req.body || {};
-    let layout3Text = body.layout3Text;
-    let layout19Text = body.layout19Text;
-    const company = body.company || {
-      code: '1',
-      name: 'Mega Varejista do Pará Ltda',
-      document: '18.493.821/0001-40',
-      state: 'PA'
-    };
+    const query = req.query || {};
+    let layout3Text = body.layout3Text || query.layout3Text;
+    let layout19Text = body.layout19Text || query.layout19Text;
 
-    // Dados padrão caso chamada venha vazia (demonstração imediata)
+    const clientId = body.clientId || query.clientId;
+    let company = body.company;
+
+    // Conectar com dados reais do SQLite (db.js) e scanner
+    const db = require('../db');
+    let realClient = null;
+    let realNotas = [];
+
+    if (clientId) {
+      try {
+        const scanner = require('../scanner');
+        realClient = (scanner.cache.clients || []).find(c => c.id === clientId);
+      } catch (e) {}
+      if (!realClient) {
+        realClient = (db.obterEmpresasDetalhes() || []).find(e => e.id === clientId || e.cnpj === clientId);
+      }
+    }
+
+    if (!company && realClient) {
+      company = {
+        code: String(realClient.codigoDominio || realClient.codigo_dominio || '1'),
+        name: realClient.razaoOficial || realClient.razao_social || realClient.name,
+        document: realClient.cnpjFormatted || realClient.cnpj,
+        state: realClient.uf || 'PA'
+      };
+    }
+
+    // Se layouts não foram fornecidos diretamente, busca notas reais no SQLite
+    if (!layout3Text || !layout19Text) {
+      const clientCnpj = (company && company.document ? company.document : (realClient?.cnpj || '')).replace(/\D/g, '');
+      if (clientCnpj) {
+        realNotas = db.obterNotasPorCliente(clientCnpj);
+      } else {
+        realNotas = db.obterNotas();
+      }
+
+      if (realNotas && realNotas.length > 0) {
+        if (!company) {
+          const firstNota = realNotas[0];
+          const docEmp = firstNota.cnpjEmpresa || firstNota.destinatario?.cnpj || firstNota.emitente?.cnpj || '18493821000140';
+          const emp = db.obterEmpresaPorCNPJ(docEmp);
+          company = {
+            code: String(emp?.codigo_dominio || '1'),
+            name: emp?.razao_social || firstNota.emitente?.razaoSocial || firstNota.destinatario?.razaoSocial || 'Empresa Local',
+            document: docEmp,
+            state: firstNota.emitente?.uf || firstNota.destinatario?.uf || 'PA'
+          };
+        }
+
+        const fiscalEngine = require('../fiscal-engine');
+        layout19Text = fiscalEngine.gerarLayout19Notas(realNotas, {
+          codigoEmpresa: parseInt(company.code || 1, 10) || 1,
+          cnpjEmpresa: company.document,
+          tipoNotas: '02'
+        });
+
+        layout3Text = fiscalEngine.gerarLayout3Participantes(realNotas, {
+          codigoEmpresa: parseInt(company.code || 1, 10) || 1
+        });
+      }
+    }
+
+    if (!company) {
+      company = {
+        code: '1',
+        name: 'Mega Varejista do Pará Ltda',
+        document: '18.493.821/0001-40',
+        state: 'PA'
+      };
+    }
+
+    // Dados padrão caso o banco esteja vazio (demonstração imediata)
     if (!layout3Text || !layout19Text) {
       layout3Text = DominioLayout3Engine.generate([
         {

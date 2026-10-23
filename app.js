@@ -781,19 +781,23 @@ function renderClientsTable() {
         <td class="py-3 px-4 text-right">
           <div class="flex items-center justify-end gap-1.5">
             ${c.cnpj ? `
-              <button onclick="navigator.clipboard.writeText('${c.cnpj}'); showToast('CNPJ ${c.cnpj} copiado!', 'success')" class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition" title="Copiar CNPJ">
+              <button onclick="navigator.clipboard.writeText('${String(c.cnpj).replace(/'/g, "\\'")}'); showToast('CNPJ copiado!', 'success')" class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition" title="Copiar CNPJ">
                 <i data-lucide="copy" class="w-4 h-4"></i>
               </button>
             ` : ''}
+            <button onclick="executarFechamento1Clique('${String(c.id).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-amber-500/20" title="⚡ Fechamento Fiscal 1-Clique (Apuração, DAS e Pacote Domínio)">
+              <i data-lucide="zap" class="w-3.5 h-3.5 fill-current"></i>
+              <span>1-Clique</span>
+            </button>
             <button onclick="triggerOpenFolder('${encodeURIComponent(c.id || '')}', '${encodeURIComponent(c.path || '')}', '${encodeURIComponent(c.name || '')}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-[#84CC16] hover:text-slate-950 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition flex items-center gap-1.5 shadow-sm" title="Abrir pasta no Windows Explorer">
               <i data-lucide="folder-open" class="w-3.5 h-3.5 text-lime-700"></i>
               <span>Abrir Pasta</span>
             </button>
-            <button onclick="openClientDetails('${c.id}')" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Ver subpastas e detalhes">
+            <button onclick="openClientDetails('${String(c.id).replace(/'/g, "\\'")}')" class="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Ver subpastas e detalhes">
               <i data-lucide="info" class="w-4 h-4"></i>
             </button>
             ${comp.missingFolders.length > 0 ? `
-              <button onclick="standardizeClient('${c.id}')" class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition" title="Criar pastas faltantes automaticamente">
+              <button onclick="standardizeClient('${String(c.id).replace(/'/g, "\\'")}')" class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition" title="Criar pastas faltantes automaticamente">
                 <i data-lucide="wand-2" class="w-4 h-4"></i>
               </button>
             ` : ''}
@@ -2584,11 +2588,12 @@ let termoBuscaNotas = '';
 let selectedEmpresaNotasId = '';
 let selectedEmpresaExtratosId = '';
 
-// Popula os menus dropdown de empresas nas abas Notas e Extratos
+// Popula os menus dropdown de empresas nas abas Notas, Extratos e Cockpit 1-Clique
 function popularSelectEmpresas() {
   const selNotas = document.getElementById('selectEmpresaNotas');
   const selExtratos = document.getElementById('selectEmpresaExtratos');
-  if (!selNotas && !selExtratos) return;
+  const selCockpit = document.getElementById('cockpitClientSelect');
+  const selCockpitFiscal = document.getElementById('cockpitClientSelectFiscal');
 
   const sorted = [...allClients].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
@@ -2617,6 +2622,393 @@ function popularSelectEmpresas() {
     });
     if (prevVal) selExtratos.value = prevVal;
   }
+
+  [selCockpit, selCockpitFiscal].forEach(sel => {
+    if (!sel) return;
+    const prevVal = sel.value;
+    sel.innerHTML = '<option value="">⚡ Selecione uma Empresa...</option>';
+    sorted.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      const cnpjFmt = formatCNPJ(c.cnpj) || 'Sem CNPJ';
+      const codDom = (c.codigoDominio || c.codigo_dominio) ? `[${String(c.codigoDominio || c.codigo_dominio).padStart(4, '0')}] ` : '';
+      opt.textContent = `${codDom}${c.name} (${cnpjFmt})`;
+      sel.appendChild(opt);
+    });
+    if (prevVal) sel.value = prevVal;
+  });
+  updateCockpitBadges('09', '2026');
+}
+
+// ============================================================
+// AUTOMAÇÃO 1-CLIQUE ("BOTÕES QUE FAZ TUDO") - PADRÃO DOMÍNIO SISTEMAS
+// ============================================================
+let currentFechamentoData = null;
+
+// Manipulador da alteração de Mês / Ano no Cockpit
+function handleCockpitPeriodChange(source) {
+  const isCockpit = source === 'cockpit';
+  const monthSel = document.getElementById(isCockpit ? 'cockpitMonthSelect' : 'cockpitMonthSelectFiscal');
+  const yearSel = document.getElementById(isCockpit ? 'cockpitYearSelect' : 'cockpitYearSelectFiscal');
+  const otherMonthSel = document.getElementById(isCockpit ? 'cockpitMonthSelectFiscal' : 'cockpitMonthSelect');
+  const otherYearSel = document.getElementById(isCockpit ? 'cockpitYearSelectFiscal' : 'cockpitYearSelect');
+
+  const mes = monthSel ? monthSel.value : '09';
+  const ano = yearSel ? yearSel.value : '2026';
+
+  // Sincroniza os seletores da outra aba
+  if (otherMonthSel && otherMonthSel.value !== mes) otherMonthSel.value = mes;
+  if (otherYearSel && otherYearSel.value !== ano) otherYearSel.value = ano;
+
+  // Atualiza os badges visuais de período e vencimento
+  updateCockpitBadges(mes, ano);
+}
+
+function updateCockpitBadges(mes, ano) {
+  const badgePeriodo = document.getElementById('cockpitPeriodoBadge');
+  const badgeVenc = document.getElementById('cockpitVencDASBadge');
+  const badgePeriodoFiscal = document.getElementById('cockpitPeriodoBadgeFiscal');
+  const badgeVencFiscal = document.getElementById('cockpitVencDASBadgeFiscal');
+
+  if (mes === 'TODAS') {
+    const txtP = `Exercício Completo ${ano}`;
+    const txtV = `Exercício ${ano}`;
+    if (badgePeriodo) badgePeriodo.textContent = txtP;
+    if (badgeVenc) badgeVenc.textContent = txtV;
+    if (badgePeriodoFiscal) badgePeriodoFiscal.textContent = txtP;
+    if (badgeVencFiscal) badgeVencFiscal.textContent = txtV;
+    return;
+  }
+
+  const anoNum = parseInt(ano, 10) || 2026;
+  const mesNum = parseInt(mes, 10) || 9;
+  const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+  const padMes = String(mesNum).padStart(2, '0');
+
+  let vencMes = mesNum + 1;
+  let vencAno = anoNum;
+  if (vencMes > 12) {
+    vencMes = 1;
+    vencAno += 1;
+  }
+  const vencStr = `20/${String(vencMes).padStart(2, '0')}/${vencAno}`;
+  const perStr = `01/${padMes} a ${ultimoDia}/${padMes}`;
+
+  if (badgePeriodo) badgePeriodo.textContent = perStr;
+  if (badgeVenc) badgeVenc.textContent = vencStr;
+  if (badgePeriodoFiscal) badgePeriodoFiscal.textContent = perStr;
+  if (badgeVencFiscal) badgeVencFiscal.textContent = vencStr;
+}
+
+function executarFechamentoCockpit(selectId, monthId, yearId) {
+  const selClient = document.getElementById(selectId);
+  const selMonth = document.getElementById(monthId || 'cockpitMonthSelect');
+  const selYear = document.getElementById(yearId || 'cockpitYearSelect');
+
+  const clientId = selClient ? selClient.value : '';
+  const mes = selMonth ? selMonth.value : '09';
+  const ano = selYear ? selYear.value : '2026';
+
+  if (!clientId) {
+    showToast('Por favor, selecione uma empresa para executar o Fechamento Fiscal.', 'warning');
+    return;
+  }
+
+  const competencia = mes === 'TODAS' ? 'TODAS' : `${ano}-${mes}`;
+  executarFechamento1Clique(clientId, competencia, ano, mes);
+}
+
+function baixarPacoteCockpit(selectId, monthId, yearId) {
+  const selClient = document.getElementById(selectId);
+  const selMonth = document.getElementById(monthId || 'cockpitMonthSelect');
+  const selYear = document.getElementById(yearId || 'cockpitYearSelect');
+
+  const clientId = selClient ? selClient.value : '';
+  const mes = selMonth ? selMonth.value : '09';
+  const ano = selYear ? selYear.value : '2026';
+
+  if (!clientId) {
+    showToast('Por favor, selecione uma empresa para baixar o pacote Domínio.', 'warning');
+    return;
+  }
+
+  const competencia = mes === 'TODAS' ? 'TODAS' : `${ano}-${mes}`;
+  baixarPacoteDominio1Clique(clientId, competencia);
+}
+
+function baixarPacoteDominio1Clique(clientId, competencia = 'TODAS') {
+  if (!clientId) {
+    showToast('Empresa não especificada.', 'error');
+    return;
+  }
+  showToast('📦 Baixando Pacote Oficial do Domínio Sistemas (ZIP)...', 'info');
+  window.location.href = `/api/automacao/download-pacote-dominio?clientId=${encodeURIComponent(clientId)}&competencia=${encodeURIComponent(competencia)}`;
+}
+
+async function executarFechamento1Clique(clientId, competencia, ano, mes, anexoSimples = 1, receita12meses = 360000, rescanear = false) {
+  if (!clientId) {
+    showToast('Empresa não especificada para fechamento.', 'error');
+    return;
+  }
+
+  const client = allClients.find(c => c.id === clientId);
+  const nomeCliente = client ? client.name : 'Empresa';
+
+  if (!ano || !mes) {
+    const selM = document.getElementById('cockpitMonthSelect');
+    const selY = document.getElementById('cockpitYearSelect');
+    mes = mes || (selM ? selM.value : '09');
+    ano = ano || (selY ? selY.value : '2026');
+  }
+  if (!competencia) {
+    competencia = mes === 'TODAS' ? 'TODAS' : `${ano}-${mes}`;
+  }
+
+  showToast(`⚡ Apurando Competência ${mes === 'TODAS' ? 'Todas' : `${mes}/${ano}`} para ${nomeCliente}...`, 'info');
+
+  try {
+    const res = await fetch('/api/automacao/fechamento-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        clientId, 
+        competencia, 
+        ano, 
+        mes, 
+        anexoSimples, 
+        receita12meses,
+        rescanear 
+      })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      showToast(`Erro na apuração: ${data.error || 'Falha ao processar'}`, 'error');
+      return;
+    }
+
+    renderModalFechamento1Clique(data);
+    showToast(`✅ Apuração Fiscal concluída: ${data.periodo?.competenciaExtenso || 'Competência'}!`, 'success');
+  } catch (err) {
+    console.error('Erro na automação 1-clique:', err);
+    showToast(`Falha de conexão com o servidor: ${err.message}`, 'error');
+  }
+}
+
+function recalcularFechamentoModal() {
+  if (!currentFechamentoData || !currentFechamentoData.cliente) return;
+  const clientId = currentFechamentoData.cliente.id;
+  const mes = document.getElementById('fechamentoModalMonth')?.value || '09';
+  const ano = document.getElementById('fechamentoModalYear')?.value || '2026';
+  const anexo = parseInt(document.getElementById('fechamentoModalAnexo')?.value || 1, 10);
+  const rbt12Raw = document.getElementById('fechamentoModalRbt12')?.value || '360000';
+  const rbt12 = parseFloat(rbt12Raw.replace(/[^\d.,]/g, '').replace(',', '.')) || 360000;
+  const competencia = mes === 'TODAS' ? 'TODAS' : `${ano}-${mes}`;
+
+  executarFechamento1Clique(clientId, competencia, ano, mes, anexo, rbt12, false);
+}
+
+function switchFechamentoModalTab(tabId) {
+  const tabs = ['resumo', 'notas', 'dominio'];
+  tabs.forEach(t => {
+    const btn = document.getElementById(`tabBtnFechamento_${t}`);
+    const content = document.getElementById(`tabContentFechamento_${t}`);
+    if (btn) {
+      if (t === tabId) {
+        btn.className = 'px-4 py-2 font-bold text-xs rounded-xl bg-lime-500/20 text-lime-900 border border-lime-400/30 transition flex items-center gap-1.5 shadow-sm';
+      } else {
+        btn.className = 'px-4 py-2 font-semibold text-xs rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition flex items-center gap-1.5';
+      }
+    }
+    if (content) {
+      if (t === tabId) content.classList.remove('hidden');
+      else content.classList.add('hidden');
+    }
+  });
+}
+
+function filtrarNotasFechamentoModal(termo) {
+  const q = String(termo || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#tbodyFechamentoNotasModal tr');
+  let visiveis = 0;
+  rows.forEach(r => {
+    const text = r.textContent.toLowerCase();
+    const match = !q || text.includes(q);
+    r.style.display = match ? '' : 'none';
+    if (match) visiveis++;
+  });
+  const elBadge = document.getElementById('fechamentoModalBadgeFiltradas');
+  if (elBadge) elBadge.textContent = `${visiveis} notas`;
+}
+
+function renderModalFechamento1Clique(data) {
+  const modal = document.getElementById('modalFechamento1Clique');
+  if (!modal) return;
+
+  window.currentFechamentoData = data;
+  const cli = data.cliente || {};
+  const per = data.periodo || {};
+  const res = data.resumo || {};
+  const dom = data.dominio || {};
+  const simples = res.simplesNacional || {};
+  const seg = res.segregacao || {};
+  const formatBRL = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  // 1. Cabeçalho Executivo
+  const elNome = document.getElementById('fechamentoModalNome');
+  const elCnpj = document.getElementById('fechamentoModalCnpj');
+  const elRegime = document.getElementById('fechamentoModalRegime');
+  const elCodDom = document.getElementById('fechamentoModalCodDom');
+  const elComp = document.getElementById('fechamentoModalCompetencia');
+  const elVenc = document.getElementById('fechamentoModalVencDAS');
+
+  if (elNome) elNome.textContent = cli.nome || '-';
+  if (elCnpj) elCnpj.textContent = formatCNPJ(cli.cnpj) || cli.cnpj || 'Sem CNPJ';
+  if (elRegime) elRegime.textContent = cli.regime || 'SIMPLES_NACIONAL';
+  if (elCodDom) elCodDom.textContent = String(cli.codigoDominio || '0001').padStart(4, '0');
+  if (elComp) elComp.textContent = `${per.competenciaExtenso || per.competenciaFormatada || '-'} (${per.dataInicioFormatada || ''} a ${per.dataFimFormatada || ''})`;
+  if (elVenc) elVenc.textContent = per.vencimentoDASFormatado || '-';
+
+  // 2. Barra de Ajuste em Tempo Real
+  const selM = document.getElementById('fechamentoModalMonth');
+  const selY = document.getElementById('fechamentoModalYear');
+  const selA = document.getElementById('fechamentoModalAnexo');
+  const inpR = document.getElementById('fechamentoModalRbt12');
+  if (selM && per.mes) selM.value = per.mes;
+  if (selY && per.ano) selY.value = per.ano;
+  if (selA && simples.anexo) selA.value = simples.anexo;
+  if (inpR) inpR.value = formatBRL(simples.receita12meses || 360000);
+
+  // 3. 4 Big Cards da Apuração
+  const elFat = document.getElementById('fechamentoModalFaturamento');
+  const elFatSub = document.getElementById('fechamentoModalFaturamentoSub');
+  const elCompras = document.getElementById('fechamentoModalCompras');
+  const elComprasSub = document.getElementById('fechamentoModalComprasSub');
+  const elAliq = document.getElementById('fechamentoModalAliquota');
+  const elDas = document.getElementById('fechamentoModalDAS');
+  const elDasVenc = document.getElementById('fechamentoModalDASDataVenc');
+
+  if (elFat) elFat.textContent = formatBRL(res.faturamentoBruto);
+  if (elFatSub) elFatSub.textContent = `${res.totalSaidas || 0} notas de saída apuradas`;
+  if (elCompras) elCompras.textContent = formatBRL(res.totalCompras);
+  if (elComprasSub) elComprasSub.textContent = `${res.totalEntradas || 0} notas de compras apuradas`;
+  if (elAliq) elAliq.textContent = simples.aliquotaEfetiva || '4.00%';
+  if (elDas) elDas.textContent = formatBRL(simples.valorImpostoSimples || 0);
+  if (elDasVenc) elDasVenc.textContent = per.vencimentoDASFormatado || '-';
+
+  // 4. Segregação Fiscal (Vendas ST vs Tributadas / Compras Revenda vs Uso e Consumo)
+  const elSaidasST = document.getElementById('fechamentoModalSaidasST');
+  const elSaidasSTQtd = document.getElementById('fechamentoModalSaidasSTQtd');
+  const elSaidasTrib = document.getElementById('fechamentoModalSaidasTrib');
+  const elSaidasTribQtd = document.getElementById('fechamentoModalSaidasTribQtd');
+  const elComprasComercial = document.getElementById('fechamentoModalComprasComercial');
+  const elComprasComercialQtd = document.getElementById('fechamentoModalComprasComercialQtd');
+  const elComprasUso = document.getElementById('fechamentoModalComprasUsoConsumo');
+  const elComprasUsoQtd = document.getElementById('fechamentoModalComprasUsoConsumoQtd');
+
+  if (elSaidasST) elSaidasST.textContent = formatBRL(seg.valorSaidasST || 0);
+  if (elSaidasSTQtd) elSaidasSTQtd.textContent = `${seg.qtdSaidasST || 0} notas com ICMS ST`;
+  if (elSaidasTrib) elSaidasTrib.textContent = formatBRL(seg.valorSaidasTributadas || 0);
+  if (elSaidasTribQtd) elSaidasTribQtd.textContent = `${seg.qtdSaidasTributadas || 0} notas tributadas`;
+  if (elComprasComercial) elComprasComercial.textContent = formatBRL(seg.valorComprasComercializacao || 0);
+  if (elComprasComercialQtd) elComprasComercialQtd.textContent = `${seg.qtdComprasComercializacao || 0} notas p/ revenda`;
+  if (elComprasUso) elComprasUso.textContent = formatBRL(seg.valorComprasUsoConsumo || 0);
+  if (elComprasUsoQtd) elComprasUsoQtd.textContent = `${seg.qtdComprasUsoConsumo || 0} notas de uso/consumo`;
+
+  // 5. Impostos Destacados
+  const elIcms = document.getElementById('fechamentoModalIcms');
+  const elPis = document.getElementById('fechamentoModalPis');
+  const elCofins = document.getElementById('fechamentoModalCofins');
+  if (elIcms) elIcms.textContent = formatBRL(res.impostosDestacados?.icms || 0);
+  if (elPis) elPis.textContent = formatBRL(res.impostosDestacados?.pis || 0);
+  if (elCofins) elCofins.textContent = formatBRL(res.impostosDestacados?.cofins || 0);
+
+  // 6. Aba 2: Tabela de Notas Fiscais da Competência
+  const tbodyNotas = document.getElementById('tbodyFechamentoNotasModal');
+  const tabCount = document.getElementById('fechamentoModalTabCountNotas');
+  const badgeFiltradas = document.getElementById('fechamentoModalBadgeFiltradas');
+  const notas = data.notasResumo || [];
+  if (tabCount) tabCount.textContent = notas.length;
+  if (badgeFiltradas) badgeFiltradas.textContent = `${notas.length} notas`;
+
+  if (tbodyNotas) {
+    if (notas.length === 0) {
+      tbodyNotas.innerHTML = '<tr><td colspan="9" class="p-6 text-center text-slate-400">Nenhuma nota fiscal encontrada nesta competência.</td></tr>';
+    } else {
+      tbodyNotas.innerHTML = notas.map(n => {
+        const isSaida = n.direcao === 'SAIDA';
+        const badgeDir = isSaida 
+          ? '<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">SAÍDA</span>' 
+          : '<span class="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px] font-extrabold">ENTRADA</span>';
+        const dtFmt = n.dataEmissao ? n.dataEmissao.split('-').reverse().join('/') : '-';
+        const cnpjFmt = formatCNPJ(n.cnpjCpf) || n.cnpjCpf || '-';
+        return `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100 text-[11px]">
+            <td class="p-2.5 font-bold">${badgeDir}</td>
+            <td class="p-2.5 font-mono font-bold text-slate-800">${n.numero} <span class="text-[9px] text-slate-400 font-normal">s.${n.serie}</span></td>
+            <td class="p-2.5 font-mono text-slate-600">${dtFmt}</td>
+            <td class="p-2.5 font-mono font-extrabold text-amber-900 bg-amber-50/50 rounded">${n.cfop}</td>
+            <td class="p-2.5 font-semibold text-slate-800 max-w-[200px] truncate" title="${n.parceiro}">${n.parceiro}</td>
+            <td class="p-2.5 font-mono text-slate-500 text-[10px]">${cnpjFmt}</td>
+            <td class="p-2.5 font-mono font-bold text-slate-900 text-right">${formatBRL(n.valorTotal)}</td>
+            <td class="p-2.5 font-mono text-slate-600 text-right">${formatBRL(n.valorICMS)}</td>
+            <td class="p-2.5 font-mono text-slate-600 text-right">${formatBRL((n.valorPIS || 0) + (n.valorCOFINS || 0))}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  // 7. Aba 3: Status dos Arquivos Oficiais do Domínio
+  const elLinhasEnt = document.getElementById('fechamentoModalLinhas19Ent');
+  const elLinhasSai = document.getElementById('fechamentoModalLinhas19Sai');
+  const elLinhas3 = document.getElementById('fechamentoModalLinhas3');
+  if (elLinhasEnt) elLinhasEnt.textContent = `${dom.layout19EntradasLinhas || 0} linhas`;
+  if (elLinhasSai) elLinhasSai.textContent = `${dom.layout19SaidasLinhas || 0} linhas`;
+  if (elLinhas3) elLinhas3.textContent = `${dom.layout3Linhas || 0} participantes`;
+
+  // Botão Download ZIP
+  const btnZip = document.getElementById('btnFechamentoDownloadZip');
+  if (btnZip) {
+    btnZip.onclick = () => {
+      window.location.href = dom.downloadZipUrl || `/api/automacao/download-pacote-dominio?clientId=${encodeURIComponent(cli.id)}`;
+      showToast('📦 Baixando Pacote Oficial do Domínio Sistemas...', 'success');
+    };
+  }
+
+  // Botão Abrir Pasta
+  const btnPasta = document.getElementById('btnFechamentoAbrirPasta');
+  if (btnPasta) {
+    btnPasta.onclick = () => {
+      const c = allClients.find(x => x.id === cli.id);
+      triggerOpenFolder(encodeURIComponent(cli.id || ''), encodeURIComponent(c?.path || ''), encodeURIComponent(cli.nome || ''));
+    };
+  }
+
+  // Botão Ir para Fiscal
+  const btnFiscal = document.getElementById('btnFechamentoIrFiscal');
+  if (btnFiscal) {
+    btnFiscal.onclick = () => {
+      fecharModalFechamento1Clique();
+      switchTab('notas');
+      const sel = document.getElementById('selectEmpresaNotas');
+      if (sel) {
+        sel.value = cli.id;
+        handleSelectEmpresaNotas(cli.id);
+      }
+    };
+  }
+
+  switchFechamentoModalTab('resumo');
+  modal.classList.remove('hidden');
+  refreshIcons();
+}
+
+function fecharModalFechamento1Clique() {
+  const modal = document.getElementById('modalFechamento1Clique');
+  if (modal) modal.classList.add('hidden');
+}
+  if (modal) modal.classList.add('hidden');
 }
 
 // Manipulador da troca de empresa ativa na Central de Notas
