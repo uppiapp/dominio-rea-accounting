@@ -1,4 +1,4 @@
-// MC Assessoria Contábil Hub - Frontend Application
+﻿// MC Assessoria Contábil Hub - Frontend Application
 let allClients = [];
 let filteredClients = [];
 let allBombeiros = [];
@@ -785,9 +785,9 @@ function renderClientsTable() {
                 <i data-lucide="copy" class="w-4 h-4"></i>
               </button>
             ` : ''}
-            <button onclick="executarFechamento1Clique('${String(c.id).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-amber-500/20" title="⚡ Fechamento Fiscal 1-Clique (Apuração, DAS e Pacote Domínio)">
+            <button onclick="executarFechamento1Clique('${String(c.id).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm shadow-amber-500/20" title="Apurar mês desta empresa">
               <i data-lucide="zap" class="w-3.5 h-3.5 fill-current"></i>
-              <span>1-Clique</span>
+              <span>Apurar</span>
             </button>
             <button onclick="triggerOpenFolder('${encodeURIComponent(c.id || '')}', '${encodeURIComponent(c.path || '')}', '${encodeURIComponent(c.name || '')}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-[#84CC16] hover:text-slate-950 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition flex items-center gap-1.5 shadow-sm" title="Abrir pasta no Windows Explorer">
               <i data-lucide="folder-open" class="w-3.5 h-3.5 text-lime-700"></i>
@@ -2588,7 +2588,7 @@ let termoBuscaNotas = '';
 let selectedEmpresaNotasId = '';
 let selectedEmpresaExtratosId = '';
 
-// Popula os menus dropdown de empresas nas abas Notas, Extratos e Cockpit 1-Clique
+// Popula os menus dropdown de empresas nas abas Notas, Extratos e Apuração do Mês
 function popularSelectEmpresas() {
   const selNotas = document.getElementById('selectEmpresaNotas');
   const selExtratos = document.getElementById('selectEmpresaExtratos');
@@ -2641,7 +2641,7 @@ function popularSelectEmpresas() {
 }
 
 // ============================================================
-// AUTOMAÇÃO 1-CLIQUE ("BOTÕES QUE FAZ TUDO") - PADRÃO DOMÍNIO SISTEMAS
+// AUTOMAÇÃO - APURAÇÃO MENSAL PARA DONA MÁRCIA E NETO
 // ============================================================
 let currentFechamentoData = null;
 

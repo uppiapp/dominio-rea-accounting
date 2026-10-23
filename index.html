@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -3377,11 +3377,11 @@
             <div class="flex items-center gap-2 flex-wrap">
               <h3 class="text-lg sm:text-xl font-black text-slate-900 tracking-tight" id="fechamentoModalNome">Empresa</h3>
               <span id="fechamentoModalRegime" class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase tracking-wide">SIMPLES_NACIONAL</span>
-              <span class="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-bold">Domínio Interop</span>
+              
             </div>
             <div class="text-xs text-slate-500 mt-1 flex items-center gap-3 flex-wrap">
               <span>CNPJ: <strong id="fechamentoModalCnpj" class="font-mono text-slate-800 font-bold">-</strong></span>
-              <span>Código Domínio: <strong id="fechamentoModalCodDom" class="font-mono text-slate-800 font-bold">0001</strong></span>
+              
               <span class="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-semibold">Competência: <strong id="fechamentoModalCompetencia">-</strong></span>
               <span class="text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md font-semibold">Vencimento DAS: <strong id="fechamentoModalVencDAS">-</strong></span>
             </div>
@@ -3435,7 +3435,7 @@
         </div>
 
         <div class="w-36">
-          <label class="block font-bold text-slate-600 text-[10px] uppercase mb-1">RBT12 (12 Meses)</label>
+          <label class="block font-bold text-slate-600 text-[10px] uppercase mb-1">Receita Acum. (12 Meses)</label>
           <input type="text" id="fechamentoModalRbt12" value="R$ 360.000,00" class="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 font-bold font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-lime-500">
         </div>
 
@@ -3451,15 +3451,15 @@
       <div class="flex items-center gap-2 border-b border-slate-200">
         <button id="tabBtnFechamento_resumo" onclick="switchFechamentoModalTab('resumo')" class="px-4 py-2 font-bold text-xs rounded-xl bg-lime-500/20 text-lime-900 border border-lime-400/30 transition flex items-center gap-1.5">
           <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
-          <span>1. Apuração Mensal & DAS</span>
+          <span>Resumo da Apuração</span>
         </button>
         <button id="tabBtnFechamento_notas" onclick="switchFechamentoModalTab('notas')" class="px-4 py-2 font-semibold text-xs rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition flex items-center gap-1.5">
           <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-          <span>2. Extrato das Notas da Competência (<span id="fechamentoModalTabCountNotas">0</span>)</span>
+          <span>Notas Fiscais do Mês (<span id="fechamentoModalTabCountNotas">0</span>)</span>
         </button>
         <button id="tabBtnFechamento_dominio" onclick="switchFechamentoModalTab('dominio')" class="px-4 py-2 font-semibold text-xs rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition flex items-center gap-1.5">
           <i data-lucide="package" class="w-3.5 h-3.5"></i>
-          <span>3. Pacote Domínio & Como Importar</span>
+          <span>Exportar para Domínio</span>
         </button>
       </div>
 
@@ -3528,9 +3528,9 @@
             <div class="flex items-center justify-between border-b border-slate-100 pb-2">
               <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
-                <span>Segregação de Receitas de Saídas</span>
+                <span>Detalhamento das Vendas</span>
               </span>
-              <span class="text-[10px] font-bold text-slate-400">CFOPs 5.102 / 5.405</span>
+              
             </div>
             <div class="space-y-2 text-xs">
               <div class="flex items-center justify-between p-2 rounded-xl bg-amber-50/60 border border-amber-100">
@@ -3562,9 +3562,9 @@
             <div class="flex items-center justify-between border-b border-slate-100 pb-2">
               <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <i data-lucide="shopping-bag" class="w-3.5 h-3.5 text-sky-600"></i>
-                <span>Classificação das Entradas por Finalidade</span>
+                <span>Detalhamento das Compras</span>
               </span>
-              <span class="text-[10px] font-bold text-slate-400">CFOPs 1.102 / 1.556</span>
+              
             </div>
             <div class="space-y-2 text-xs">
               <div class="flex items-center justify-between p-2 rounded-xl bg-sky-50/60 border border-sky-100">
@@ -3574,7 +3574,7 @@
                 </div>
                 <div class="text-right">
                   <span class="font-mono font-bold text-sky-900" id="fechamentoModalComprasComercial">R$ 0,00</span>
-                  <span class="text-[9px] text-sky-700 block font-medium">Acumulador 1</span>
+                  
                 </div>
               </div>
 
@@ -3585,7 +3585,7 @@
                 </div>
                 <div class="text-right">
                   <span class="font-mono font-bold text-slate-800" id="fechamentoModalComprasUsoConsumo">R$ 0,00</span>
-                  <span class="text-[9px] text-slate-500 block font-medium">Acumulador 2</span>
+                  
                 </div>
               </div>
             </div>
@@ -3630,7 +3630,7 @@
                 <th class="p-2.5">Operação</th>
                 <th class="p-2.5">Nº / Série</th>
                 <th class="p-2.5">Emissão</th>
-                <th class="p-2.5">CFOP Domínio</th>
+                <th class="p-2.5">Operação</th>
                 <th class="p-2.5">Fornecedor / Destinatário</th>
                 <th class="p-2.5">CNPJ / CPF</th>
                 <th class="p-2.5 text-right">Valor Total</th>
@@ -3724,7 +3724,7 @@
           </button>
           <button id="btnFechamentoDownloadZip" class="btn-monet-lime px-5 py-2.5 text-xs font-black shadow-lg shadow-lime-500/25 flex items-center gap-2">
             <i data-lucide="download" class="w-4 h-4"></i>
-            <span>Baixar Pacote Domínio Sistemas (ZIP)</span>
+            <span>📥 Baixar Arquivos para o Domínio</span>
           </button>
         </div>
       </div>
